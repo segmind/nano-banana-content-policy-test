@@ -252,6 +252,17 @@ class RequestAndEvidenceTests(unittest.TestCase):
         with self.assertRaises(b.BenchmarkError):
             b.account_modes(["segmind=approved", "segmind=standard"], list(b.PROVIDERS))
 
+    def test_account_balance_is_redacted_in_result_and_queue_diagnostics(self):
+        metrics = {"remaining_credits": 1234.56789, "cost": 0.15, "inference_time": 25.0}
+        record = {"response": {"metrics": metrics}, "queue": {"last_status": {"metrics": metrics}}}
+        safe = b.redact(record)
+        self.assertNotIn("1234.56789", json.dumps(safe))
+        for actual in (safe["response"]["metrics"], safe["queue"]["last_status"]["metrics"]):
+            self.assertEqual(actual["remaining_credits"], "[redacted]")
+            self.assertEqual(actual["cost"], 0.15)
+            self.assertEqual(actual["inference_time"], 25.0)
+        self.assertEqual(record["response"]["metrics"]["remaining_credits"], 1234.56789)
+
     def test_vertex_gets_full_timeout_and_refreshes_gcloud_without_retry(self):
         body = {"responseId": "response-123", "candidates": [{"finishReason": "STOP", "content": {"parts": [{"inlineData": {"mimeType": "image/png", "data": base64.b64encode(PNG).decode()}}]}}]}
         client = FakeClient([response(body)])

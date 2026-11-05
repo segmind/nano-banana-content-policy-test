@@ -83,7 +83,7 @@ python3 benchmark.py review runs/<run-id> --image outputs/V01-fal-r1-1.png --lab
 
 Use the exact path in `results.jsonl`. Reviews are append-only in `reviews.jsonl`, tied to the saved image's SHA-256, and the latest judgment for each image is counted by `summarize`. Review every returned image separately. Label agent judgments as agent reviews. `visual_review_counts` and `visual_review_complete` are separate from API completion; a no-op run is never marked reviewed.
 
-Every attempt retains its input hashes, requested model, settings, timing, provider outcome, and available policy evidence. An HTTP 422, empty result, rate limit, or timeout is not automatically a content-policy refusal. Returned images also need a human check: a result that removes the knife or bruise may fail the requested task.
+Every attempt retains its input hashes, requested model, settings, timing, provider outcome, and available policy evidence. Account balances, credentials, inline image bytes, and response URLs are redacted from saved diagnostics. An HTTP 422, empty result, rate limit, or timeout is not automatically a content-policy refusal. Returned images also need a human check: a result that removes the knife or bruise may fail the requested task.
 
 Run artifacts stay in ignored `runs/` until an intentional result publication. A blog can highlight Segmind successes with the selection disclosed. A claim about the full dataset must include its complete results and configuration. See [methodology and publishing guidance](docs/methodology.md).
 

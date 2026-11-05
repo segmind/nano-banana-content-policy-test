@@ -623,8 +623,8 @@ def output_candidates(provider: str, body: Any) -> list[dict]:
 
 
 def redact(value: Any, secrets: list[str] | None = None, key: str = "") -> Any:
-    """Keep useful response metadata without credentials, image bytes or signed URLs."""
-    if key.lower().replace("_", "-") in {"authorization", "x-api-key", "api-key", "access-token", "token", "secret", "base64", "b64-json", "image-base64", "set-cookie", "cookie"}:
+    """Keep diagnostics while omitting credentials, account balances and media URLs."""
+    if key.lower().replace("_", "-") in {"authorization", "x-api-key", "api-key", "access-token", "token", "secret", "base64", "b64-json", "image-base64", "set-cookie", "cookie", "remaining-credits"}:
         return "[redacted]"
     if key in ("inlineData", "inline_data") and isinstance(value, dict):
         return {k: ("[image bytes omitted]" if k == "data" else redact(v, secrets, k)) for k, v in value.items()}
