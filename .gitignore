@@ -6,3 +6,5 @@ __pycache__/
 .venv/
 runs/
 .DS_Store
+reference-candidates/*/media/
+reference-candidates/*/index.html

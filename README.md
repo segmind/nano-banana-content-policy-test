@@ -91,6 +91,14 @@ Run artifacts stay in ignored `runs/` until an intentional result publication. A
 
 ## Verify or extend
 
+Candidate sourcing stays separate from frozen benchmark revisions. The
+[reference review collection](reference-candidates/violence-harvest-v1/README.md)
+records staged photographs and original-film frames with source-specific rights,
+checksums and selection status. Its media and generated local gallery are ignored
+until rights and dataset review are complete. `candidate_review.py` validates the
+catalog offline and builds the local gallery; it never calls providers or selects
+benchmark cases.
+
 ```bash
 python3 -m unittest discover -s tests -v
 ```
