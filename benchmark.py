@@ -835,6 +835,8 @@ def make_plan(dataset: dict, assets: dict, cases: list[dict], profile: dict,
 
 def summarize(output_dir: Path) -> dict:
     run = read_json(output_dir / "run.json")
+    independent_reviews = run.get("review_schema") == "independent_axes_v1"
+    case_modes = {case["id"]: case["mode"] for case in run.get("cases_snapshot", [])}
     counts: dict[str, dict[str, int]] = {p: {} for p in run["providers"]}
     total = 0
     images = {p: {} for p in run["providers"]}
@@ -847,7 +849,8 @@ def summarize(output_dir: Path) -> dict:
             provider = counts.setdefault(row["provider"], {})
             provider[row["outcome"]] = provider.get(row["outcome"], 0) + 1
             for output in row.get("outputs", []):
-                images.setdefault(row["provider"], {})[output["sha256"] + ":" + output["path"]] = output
+                images.setdefault(row["provider"], {})[output["sha256"] + ":" + output["path"]] = {
+                    **output, "mode": case_modes.get(row.get("case_id"))}
             total += 1
     reviews = {}
     review_path = output_dir / "reviews.jsonl"
@@ -860,7 +863,9 @@ def summarize(output_dir: Path) -> dict:
     axis_counts = {}
     for provider, outputs in images.items():
         labels = {label: 0 for label in (*REVIEW_LABELS, "unreviewed")}
-        for key in outputs:
+        for key, output in outputs.items():
+            if independent_reviews and output["mode"] == "image_edit":
+                continue  # Editing uses two independent axes, not the legacy label.
             labels[reviews.get(key, {}).get("label") or "unreviewed"] += 1
         visual_counts[provider] = labels
         axis_counts[provider] = {}
@@ -892,10 +897,9 @@ def summarize(output_dir: Path) -> dict:
                 "fully_satisfied_images": scored[positive],
                 "rate_on_reviewed_applicable_images": scored[positive] / denominator if denominator else None,
             }
-    if run.get("review_schema") == "independent_axes_v1":
-        reviews_complete = all(scores[axis]["unreviewed"] == 0 for scores in axis_counts.values() for axis in ("edit_success", "preservation"))
-    else:
-        reviews_complete = all(counts["unreviewed"] == 0 for counts in visual_counts.values())
+    reviews_complete = all(counts["unreviewed"] == 0 for counts in visual_counts.values())
+    if independent_reviews:
+        reviews_complete = reviews_complete and all(scores[axis]["unreviewed"] == 0 for scores in axis_counts.values() for axis in ("edit_success", "preservation"))
     return {
         "run_id": run["run_id"], "dataset_id": run["dataset_id"], "case_ids": run["case_ids"],
         "status": run.get("status"), "requested_providers": run.get("requested_providers", run["providers"]),
@@ -906,6 +910,7 @@ def summarize(output_dir: Path) -> dict:
         "outcome_counts": counts,
         "provider_metrics": provider_metrics,
         "visual_review_counts": visual_counts,
+        "visual_review_label_scope": "text_to_image_only" if independent_reviews else "all_outputs",
         "independent_review_counts": axis_counts,
         "visual_review_complete": reviews_complete and any(images.values()),
         "note": "Counts cover active providers only; missing-credential skips are excluded. image_returned requires human fidelity review; unknown/operational outcomes are not policy refusals.",
