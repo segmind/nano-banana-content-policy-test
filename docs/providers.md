@@ -21,7 +21,7 @@ Submit once to `POST https://api.segmind.com/v2/{model}` with the `x-api-key` he
 
 The model API documents public URLs in `image_urls`. This runner requires a public URL for every Segmind reference and fetches it before inference to verify its SHA-256 matches the local reference. Use a URL pinned to the asset commit. fal and Vertex receive the same local file bytes through their documented inline mechanisms.
 
-The adapter accepts current `images[]` results and older `output` media envelopes. Failed HTTP 422 polls with `status: FAILED` are followed by a result fetch so full native diagnostics are preserved.
+The adapter accepts current `images[]` results and older `output` media envelopes. A JSON-encoded `output.data.finish_reason` can carry a Gemini safety or recitation result even under HTTP 200. The classifier recognizes exact known enum values, including the `FinishReason.` prefix, rather than matching words in a message. Failed HTTP 422 polls with `status: FAILED` are followed by a result fetch so full native diagnostics are preserved.
 
 Segmind's async `FAILED` state and HTTP 422 cover multiple failure types. They do not by themselves establish a policy refusal. Public documentation does not specify a stable typed Nano Banana moderation-error schema; ambiguous errors remain unclassified for human review.
 
