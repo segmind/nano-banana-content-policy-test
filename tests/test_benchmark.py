@@ -58,6 +58,24 @@ def sample_assets(directory):
 
 
 class ClassificationTests(unittest.TestCase):
+    def test_segmind_json_envelope_requires_an_exact_structured_finish_reason(self):
+        for envelope in ({'data': {'finish_reason': 'FinishReason.IMAGE_SAFETY'}},
+                         {'data': {'finish_reason': 'IMAGE_SAFETY'}}):
+            for output in (envelope, json.dumps(envelope)):
+                with self.subTest(output=output):
+                    body = {'output': output}
+                    self.assertEqual(b.classify_response(200, body), 'policy_refusal')
+                    self.assertEqual(b.response_signals(body)['finish_reasons'], ['IMAGE_SAFETY'])
+        bodies = [
+            {'output': json.dumps({'data': {'message': 'FinishReason.IMAGE_SAFETY'}})},
+            {'output': json.dumps({'data': {'finish_reason': 'Unknown.IMAGE_SAFETY'}})},
+            {'output': 'Generation completed with status: FinishReason.IMAGE_SAFETY'},
+            {'output': {'data': {'finish_reason': None}}},
+        ]
+        for body in bodies:
+            self.assertEqual(b.classify_response(200, body), 'unclassified_no_image')
+        self.assertEqual(b.classify_response(200, {'output': {'data': {'finish_reason': 'FinishReason.IMAGE_RECITATION'}}}), 'recitation_refusal')
+
     def test_explicit_policy_fields(self):
         bodies = [
             {"detail": [{"type": "content_policy_violation", "loc": ["body", "prompt"]}]},

@@ -600,6 +600,20 @@ def response_signals(body: Any) -> dict:
     signals = {"block_reason": None, "finish_reasons": [], "policy_types": [], "rai_filtered_reasons": []}
     if not isinstance(body, dict):
         return signals
+    # Segmind may JSON-encode structured Gemini rejection metadata in output.data.
+    # Read the exact finish_reason field, never safety words in message prose.
+    output = body.get("output")
+    if isinstance(output, str):
+        try:
+            output = json.loads(output)
+        except ValueError:
+            output = None
+    if isinstance(output, dict) and isinstance(output.get("data"), dict):
+        reason = output["data"].get("finish_reason")
+        if isinstance(reason, str):
+            reason = reason.removeprefix("FinishReason.")
+            if reason in SAFETY_REASONS | RECITATION_REASONS:
+                signals["finish_reasons"].append(reason)
     feedback = body.get("promptFeedback", body.get("prompt_feedback", {}))
     if isinstance(feedback, dict):
         signals["block_reason"] = feedback.get("blockReason", feedback.get("block_reason"))
