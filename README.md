@@ -2,7 +2,14 @@
 
 Reproducible image-generation and editing cases for comparing policy-related failures on Segmind, fal, and Google Direct through Vertex AI. The original dataset focuses on violence: **15 cases, including 12 reference-image edits (80%) and 3 prompt-only generations**.
 
-**Current revision:** [violence-v2](datasets/violence-v2/README.md) starts nine of its twelve edits with existing violence or injuries and scores edit success separately from preservation. It requires a frozen reference and provenance manifest before comparison. Select it explicitly with `--dataset datasets/violence-v2`; the default remains the original revision for reproducibility.
+**Current curated revision:** [violence-v4](datasets/violence-v4/README.md) contains
+15 edits using 15 color photographs, selected from a 38-case pilot to maximize
+the reviewed Segmind-minus-fal task-completion gap under a fal pass-rate cap.
+Fresh confirmation repetitions are measured separately from selection. Use
+`--dataset datasets/violence-v4` explicitly; the default remains the original
+revision for reproducibility.
+
+**Synthetic baseline:** [violence-v2](datasets/violence-v2/README.md) starts nine of its twelve edits with existing violence or injuries and scores edit success separately from preservation. It requires a frozen reference and provenance manifest before comparison. Select it explicitly with `--dataset datasets/violence-v2`; the default remains the original revision for reproducibility.
 
 **Photo screening revision:** [violence-v3](datasets/violence-v3/README.md) uses 19
 color photographs and 38 fixed edits to explore provider differences. Selection is

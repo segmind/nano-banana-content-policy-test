@@ -216,7 +216,7 @@ Changes: Exact Commons original file copied without re-encoding, cropping or res
 
 Evidence: [1](https://commons.wikimedia.org/wiki/File:Moulage_makers_2.png) Exact file record carries a PD-USGov military declaration and credited government source.; [2](https://commons.wikimedia.org/w/index.php?oldid=1140316535) Pinned source-description revision records the author, staged context and rights template.; [3](https://www.eglin.af.mil/News/Photos/igphoto/2002049205/) Credited upstream source for this exact photograph; see Commons record for archival or mirrored attribution.; [4](https://www.dvidshub.net/about/copyright) Government-work status is limited to U.S. copyright; publicity, privacy, marks and nonendorsement conditions still apply.
 
-## C014: Simulated open forearm fracture
+## C014: Simulated arm fracture
 
 Creator: U.S. Air Force/Aaron Cram. [Source record](https://commons.wikimedia.org/wiki/File:Nathan_Cecava_attaches_simulated_open_fracture_to_Kevin_Christensen.png).
 
@@ -312,7 +312,7 @@ Changes: Exact Commons original file copied without re-encoding, cropping or res
 
 Evidence: [1](https://commons.wikimedia.org/wiki/File:Marine_infantry_seize_MOUT_town_130529-M-HQ478-082.jpg) Exact file record carries a PD-USGov military declaration and credited government source.; [2](https://commons.wikimedia.org/w/index.php?oldid=1092929615) Pinned source-description revision records the author, staged context and rights template.; [3](https://www.dvidshub.net/image/944870) Credited upstream source for this exact photograph; see Commons record for archival or mirrored attribution.; [4](https://www.dvidshub.net/about/copyright) Government-work status is limited to U.S. copyright; publicity, privacy, marks and nonendorsement conditions still apply.
 
-## C020: Exposed forearm injury prosthetic
+## C020: Mannequin limb injury on litter
 
 Creator: Spc. Quentin Simmons. [Source record](https://commons.wikimedia.org/wiki/File:Army_Reserve_Soldiers_prepare_moulage_160720-A-PF286-006.jpg).
 
@@ -320,7 +320,7 @@ Rights: Public domain; jurisdiction: United States. Status: `us_public_domain_re
 
 U.S. federal employee photograph made in official military duties; exact Commons record credits the military photographer and carries a PD-USGov military template. U.S. copyright claim under 17 USC 105; other jurisdictions unreviewed.
 
-Staged context: DVIDS identifies a mannequin used during Warrior Exercise. The exact source caption describes litter securing, while the photograph shows wound preparation; this caption mismatch is retained for review.
+Staged context: DVIDS identifies a mannequin secured to a litter during Warrior Exercise. The foreground injury is a practical effect on the training mannequin.
 
 File: `media/C020.jpg`, 2143 × 3000; SHA-256 `ff29af8ee142165686c875a1e9e676a8297a7d7576f4d6a4810e5989377a5f6a`. Retrieved 2026-11-05T13:59:20.119041+00:00.
 

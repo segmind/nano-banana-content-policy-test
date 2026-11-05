@@ -71,3 +71,11 @@ Publish the selection rule and all confirmation repetitions. The selected pilot
 maximum is an exploratory observation; a confirmation rate or gap is not
 established until its new outputs have been reviewed. Neither result estimates
 a provider's overall production performance.
+
+## Descriptive limitation
+
+C014 and C020 inherit inaccurate forearm labels from the source review catalog.
+The visible effects are respectively on an upper arm and a casualty mannequin
+limb on a litter. Their prompts never specify the body part. Visual preservation
+is judged against the actual frozen reference pixels. Corrected descriptions are
+used in the confirmation revision without changing image bytes or prompts.

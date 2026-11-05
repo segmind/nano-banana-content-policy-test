@@ -55,6 +55,7 @@ def measure_run(directory: Path) -> dict:
             passed = passed and edit == 'success' and preservation == 'preserved'
         attempts.append({'case_id': key[0], 'provider': key[1], 'repeat': key[2],
                          'outcome': row['outcome'], 'pass': None if pending else bool(passed),
+                         'output_fetch_error': bool(row.get('output_errors')),
                          'image_returned': row['outcome'] == 'image_returned'})
     metrics = {}
     for provider in providers:
@@ -63,6 +64,7 @@ def measure_run(directory: Path) -> dict:
         counts = Counter(row['outcome'] for row in rows)
         passes = sum(row['pass'] is True for row in rows)
         operational = sum(count for outcome, count in counts.items() if outcome not in ('image_returned', 'policy_refusal', 'recitation_refusal'))
+        operational += sum(row['outcome'] == 'image_returned' and row['output_fetch_error'] for row in rows)
         metrics[provider] = {'attempts': len(rows), 'passes': passes, 'unreviewed_attempts': pending,
                              'image_returns': counts['image_returned'], 'policy_refusals': counts['policy_refusal'],
                              'operational_or_unresolved': operational, 'outcomes': dict(counts),

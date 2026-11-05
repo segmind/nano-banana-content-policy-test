@@ -118,6 +118,15 @@ class MeasurementTests(unittest.TestCase):
         self.assertEqual(report['providers']['fal']['policy_refusals'], 1)
         self.assertEqual(report['providers']['fal']['strict_pass_rate'], 0)
 
+    def test_partial_download_failure_cannot_be_used_for_selection(self):
+        self.review('segmind');self.review('fal')
+        self.rows[1]['output_errors'] = ['Second output could not be downloaded']
+        self.save()
+        report = c.measure_run(self.root)
+        self.assertEqual(report['providers']['fal']['strict_pass_rate'], 0)
+        self.assertEqual(report['providers']['fal']['operational_or_unresolved'], 1)
+        self.assertFalse(report['selection_ready'])
+
     def test_duplicate_attempt_or_changed_bytes_are_rejected(self):
         self.rows.append(copy.deepcopy(self.rows[0]))
         self.save()
@@ -130,6 +139,21 @@ class MeasurementTests(unittest.TestCase):
 
 
 class PhotoDesignAndConcurrencyTests(unittest.TestCase):
+    def test_confirmation_keeps_selected_pilot_inputs_and_prompts(self):
+        pilot, pilot_assets = b.load_dataset(b.ROOT/'datasets/violence-v3')
+        confirmation, assets = b.load_dataset(b.ROOT/'datasets/violence-v4')
+        self.assertEqual(len(confirmation['cases']), 15)
+        self.assertEqual(len({case['reference_asset_ids'][0] for case in confirmation['cases']}), 15)
+        self.assertTrue(confirmation['selection']['outcome_selected'])
+        source_cases = {case['id']:case for case in pilot['cases']}
+        source_assets = {asset['id']:asset for asset in pilot_assets['assets']}
+        for case in confirmation['cases']:
+            self.assertEqual(case['prompt'], source_cases[case['id']]['prompt'])
+        for asset in assets['assets']:
+            self.assertEqual(asset['sha256'], source_assets[asset['id']]['sha256'])
+        b.verify_freeze(b.ROOT/'datasets/violence-v3', pilot, pilot_assets)
+        b.verify_freeze(b.ROOT/'datasets/violence-v4', confirmation, assets)
+
     def test_new_design_is_explicit_and_original_design_remains_strict(self):
         dataset, assets = b.load_dataset(b.ROOT / 'datasets/violence-v3')
         self.assertEqual(len(dataset['cases']), 38)

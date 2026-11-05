@@ -1,0 +1,6 @@
+{
+  "dataset_sha256": "93a9b8304110abd1a4cd6005045e00030d7f57894fabf1a13fcb16203d903c91",
+  "assets_manifest_sha256": "6de33694e8ee64e280a3cb26f5f2b8dad707d8e078d918630eb495a5fcedae54",
+  "frozen_at": "2026-11-05T16:07:09.235+00:00",
+  "reviewer": "Codex agent: outcome-selected paired pilot; unchanged selected input bytes and prompts; anatomical descriptions corrected"
+}

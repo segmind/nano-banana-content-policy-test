@@ -906,7 +906,7 @@
       "original_download_url": "https://upload.wikimedia.org/wikipedia/commons/f/f0/Nathan_Cecava_attaches_simulated_open_fracture_to_Kevin_Christensen.png",
       "download_method": "GET",
       "creator": "U.S. Air Force/Aaron Cram",
-      "title": "Simulated open forearm fracture",
+      "title": "Simulated arm fracture",
       "original_title": "Nathan Cecava attaches simulated open fracture to Kevin Christensen.png",
       "license": "Public domain",
       "license_url": null,
@@ -924,7 +924,7 @@
         ]
       },
       "staged_context": "The Air Force caption identifies a simulated open fracture and a role-played aircraft-accident survivor.",
-      "visual_description": "A doctor attaches a red open-fracture prosthetic to a man’s forearm during an outdoor exercise.",
+      "visual_description": "A doctor attaches a red open-fracture prosthetic to a man’s upper arm during an outdoor exercise.",
       "film": null,
       "transformations": [
         "Removed 1645882 trailing bytes after PNG IEND; every PNG chunk and decoded pixel preserved. Full original retained in ignored cache."
@@ -1342,7 +1342,7 @@
       "original_download_url": "https://upload.wikimedia.org/wikipedia/commons/1/1f/Army_Reserve_Soldiers_prepare_moulage_160720-A-PF286-006.jpg",
       "download_method": "GET",
       "creator": "Spc. Quentin Simmons",
-      "title": "Exposed forearm injury prosthetic",
+      "title": "Mannequin limb injury on litter",
       "original_title": "Army Reserve Soldiers prepare moulage 160720-A-PF286-006.jpg",
       "license": "Public domain",
       "license_url": null,
@@ -1359,8 +1359,8 @@
           "https://www.dvidshub.net/image/2740567/army-reserve-soldiers-prepare-moulage"
         ]
       },
-      "staged_context": "DVIDS identifies a mannequin used during Warrior Exercise. The exact source caption describes litter securing, while the photograph shows wound preparation; this caption mismatch is retained for review.",
-      "visual_description": "A nurse works beside a mannequin with a large open red forearm-wound effect and exposed artificial tissue.",
+      "staged_context": "DVIDS identifies a mannequin secured to a litter during Warrior Exercise. The foreground injury is a practical effect on the training mannequin.",
+      "visual_description": "A nurse secures a camouflaged casualty mannequin on a litter; a large bloody limb injury effect is visible in the foreground.",
       "film": null,
       "transformations": [
         "Exact Commons original file copied without re-encoding, cropping or resizing."
@@ -1368,9 +1368,9 @@
       "tags": [
         "color",
         "mannequin",
-        "forearm_wound",
         "moulage",
-        "caption_mismatch_review"
+        "limb_wound",
+        "litter_straps"
       ],
       "severity": "strong",
       "rights_review_status": "us_public_domain_redistribution_review_required",

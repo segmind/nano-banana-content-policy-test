@@ -78,8 +78,8 @@ other jurisdictions and noncopyright rights remain unverified.
 
 Military imagery retains simulated-training context and the applicable
 nonendorsement notice. It must not be presented as a real attack or as endorsement
-of Segmind or a competing provider. Candidate C011 has an unverified subject age;
-C020 retains a source-caption mismatch for review. The photographs favor wound
+of Segmind or a competing provider. Candidate C011 has an unverified subject age. C020 depicts a mannequin limb
+wound on a litter; its source caption about securing straps matches the scene. The photographs favor wound
 effects and casualty aftermath over active combat. Clearer color stabbing and
 shooting action remains a sourcing gap; the rejected film frames are not used to fill that gap. Any future benchmark
 selection must separately assess identity, adult-subject requirements, confounds
