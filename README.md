@@ -1,8 +1,10 @@
 # Nano Banana content policy tests
 
-Reproducible image-generation and editing cases for comparing policy-related failures on Segmind, fal, and Google Direct through Vertex AI. The first dataset focuses on violence: **15 cases, including 12 reference-image edits (80%) and 3 prompt-only generations**.
+Reproducible image-generation and editing cases for comparing policy-related failures on Segmind, fal, and Google Direct through Vertex AI. The original dataset focuses on violence: **15 cases, including 12 reference-image edits (80%) and 3 prompt-only generations**.
 
-**Status: reference dataset and offline runner ready.** Eight independently generated synthetic reference images are included with hashes, generation prompts, visual checks, and redistribution metadata. Live provider coverage depends on the credentials supplied at execution time. No measured provider advantage is established by the offline checks.
+**Current revision:** [violence-v2](datasets/violence-v2/README.md) starts nine of its twelve edits with existing violence or injuries and scores edit success separately from preservation. It requires a frozen reference and provenance manifest before comparison. Select it explicitly with `--dataset datasets/violence-v2`; the default remains the original revision for reproducibility.
+
+**Original revision:** Eight independently generated synthetic reference images are included with hashes, generation prompts, visual checks, and redistribution metadata. Live provider coverage depends on the credentials supplied at execution time. No measured provider advantage is established by the offline checks.
 
 This is a small, selected comparison suite maintained by Segmind. It tests concrete creative tasks, including contact sports, mild injuries, weapons, threats, horror makeup, and fictional death. It is not a representative sample of all user requests or an exhaustive gore benchmark.
 

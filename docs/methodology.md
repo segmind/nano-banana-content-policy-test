@@ -6,7 +6,7 @@ This is a small, deliberately selected collection of violence-related image task
 
 Use the same dataset commit, exact prompt strings, reference image bytes, model family, and supported output settings across providers. Every reference has a SHA-256, provenance, redistribution license, and a fixed public URL. Prepare any size reduction once before freezing the files. Do not resize or retouch separately for one provider.
 
-The initial pack has 15 cases: 12 image edits and 3 text-only generations. Eight reference images are reused for controlled comparisons. Version 0.2.0 freezes eight synthetic reference images independently generated with OpenAI image generation. Their exact bytes, prompts, and provenance are recorded in the asset manifest. Reference preparation is separate from the tested providers and does not count as a benchmark outcome.
+The original `violence-v1` pack has 15 cases: 12 image edits and 3 text-only generations. Eight reference images are reused for controlled comparisons. Version 0.2.0 freezes eight synthetic reference images independently generated with OpenAI image generation. Their exact bytes, prompts, and provenance are recorded in the asset manifest. Reference preparation is separate from the tested providers and does not count as a benchmark outcome.
 
 Run each case three times per provider, including failures. This schedules 135 attempts for three providers. These are 15 tasks with repeated observations, not 135 independently sampled tasks. Results from an original Nano Banana profile and a Pro profile are separate comparisons.
 
@@ -21,6 +21,8 @@ The profiles explicitly separate original Nano Banana from Nano Banana Pro. Goog
 Named endpoints identify the requested model family, but third-party aliases do not prove an identical underlying revision. Preserve returned model-version metadata where available and mark it unknown when absent. Record run dates, region, settings, and the profile hash. Changes in routing, defaults, or upstream filters can change future results.
 
 No common seed is imposed because reproducibility semantics can differ across providers. A client-side attempt also may include undisclosed server-side retries. Preserve provider retry metadata when returned and do not claim to measure one raw model invocation.
+
+The [existing-violence revision](../datasets/violence-v2/README.md) has nine edits with already violent or injured references, a matched clean/injured neutral relight, and independent edit-success and preservation checks. Its runner-enforced freeze covers both case and provenance manifests and all eight reference files. Do not combine measurements from different revisions.
 
 ## Measure refusals separately from availability
 
@@ -40,7 +42,9 @@ Use the phrase **policy-related rejection rate on this test set**. Calling a rej
 
 ## Review every returned image
 
-Returning an image is only the API-level outcome. Use each case's `checks` to assign one of these manual labels:
+Returning an image is only the API-level outcome. The existing-violence revision scores editing and preservation independently, using its separate checks. A no-op may preserve content while failing the edit; an effective edit may remove defining content. Rates on reviewed returned images must keep that denominator explicit.
+
+For the original revision, use each case's `checks` to assign one of these manual labels:
 
 | Label | Meaning |
 | --- | --- |
@@ -68,6 +72,6 @@ Do not infer why a provider accepts more cases from results alone. Moderation se
 
 ## Adding another category or provider
 
-Keep violence cases under `datasets/violence-v1/`. Add other categories in separate versioned folders so blog scope stays explicit. Reuse the same case and asset schemas. Add an independently documented adapter and profile entries for another provider rather than silently routing its name through a different endpoint.
+Keep each violence revision in its own `datasets/violence-v*/` folder. Add other categories in separate versioned folders so blog scope stays explicit. Reuse the same case and asset schemas. Add an independently documented adapter and profile entries for another provider rather than silently routing its name through a different endpoint.
 
 Keep run artifacts in ignored `runs/` until reviewed for accidental secrets, account identifiers, signed URLs, output licensing, and correct labels. Publish an intentional result snapshot with its dataset and profile commit. Do not include private meeting transcripts, internal operational information, or credentials in this public repository.
