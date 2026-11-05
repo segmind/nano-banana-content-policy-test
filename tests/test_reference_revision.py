@@ -72,6 +72,36 @@ class ReferenceRevisionTests(unittest.TestCase):
             self.assertEqual(client.calls, [])
             self.assertFalse((root / 'run').exists())
 
+    def test_selected_smoke_cannot_bypass_a_missing_frozen_reference(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            assets = sample_assets(root)
+            assets['assets'].append({**assets['assets'][0], 'id': 'R02', 'path': 'assets/R02.png'})
+            (root / 'assets/R02.png').write_bytes(PNG)
+            cases = [{'id': name, 'mode': 'image_edit', 'prompt': 'Relight', 'reference_asset_ids': [ref]}
+                     for name, ref in (('V01', 'R01'), ('V02', 'R02'))]
+            dataset = {'dataset_id': 'fixture', 'version': '1', 'freeze_required': True, 'cases': cases}
+            b.freeze_dataset(root, dataset, assets, 'Test reviewer')
+            (root / 'assets/R02.png').unlink()
+            args = argparse.Namespace(dataset=root, account_mode=None, timeout=10, repeats=1, output=root / 'run')
+            client = FakeClient()
+            with patch.dict('os.environ', {'FAL_KEY': 'test-only'}, clear=True), self.assertRaises(b.BenchmarkError):
+                b.run_benchmark(args, dataset, assets, cases[:1], b.load_profile('nano-banana-pro'), ['fal'], client)
+            self.assertEqual(client.calls, [])
+
+    def test_missing_credentials_skip_without_requiring_a_freeze(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dataset = {'dataset_id': 'fixture', 'version': '1', 'freeze_required': True, 'cases': []}
+            args = argparse.Namespace(dataset=root, account_mode=None, timeout=10, repeats=1, output=root / 'run')
+            client = FakeClient()
+            with patch.dict('os.environ', {}, clear=True):
+                output = b.run_benchmark(args, dataset, {'assets': []}, [], b.load_profile('nano-banana-pro'), ['fal'], client)
+            summary = b.summarize(output)
+            self.assertEqual(summary['active_providers'], [])
+            self.assertEqual(summary['recorded_attempts'], 0)
+            self.assertEqual(client.calls, [])
+
     def test_independent_scores_do_not_infer_from_legacy_label(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -95,10 +125,32 @@ class ReferenceRevisionTests(unittest.TestCase):
             self.assertEqual(summary['provider_metrics']['fal']['image_return_rate_on_recorded_attempts'], 1)
             self.assertEqual(summary['provider_metrics']['fal']['edit_success']['rate_on_reviewed_applicable_images'], 0)
             self.assertEqual(summary['provider_metrics']['fal']['preservation']['rate_on_reviewed_applicable_images'], 1)
+            self.assertEqual(summary['visual_review_label_scope'], 'text_to_image_only')
+            self.assertEqual(summary['visual_review_counts']['fal']['unreviewed'], 0)
             args.preservation = 'not_applicable'
             with self.assertRaises(b.BenchmarkError):
                 b.review_output(args)
             self.assertEqual(len((root / 'reviews.jsonl').read_text().splitlines()), 2)
+
+    def test_generation_needs_a_fidelity_label_as_well_as_not_applicable_axes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'image.png').write_bytes(PNG)
+            manifest = {'run_id': 'text', 'dataset_id': 'fixture', 'case_ids': ['V13'], 'providers': ['fal'],
+                        'planned_inference_requests': 1, 'status': 'complete', 'review_schema': 'independent_axes_v1',
+                        'cases_snapshot': [{'id': 'V13', 'mode': 'text_to_image'}]}
+            (root / 'run.json').write_text(json.dumps(manifest))
+            output = {'path': 'image.png', 'sha256': b.digest(PNG)}
+            b.append_jsonl(root / 'results.jsonl', {'case_id': 'V13', 'provider': 'fal', 'outcome': 'image_returned', 'outputs': [output]})
+            args = argparse.Namespace(run_directory=root, image='image.png', label=None, reviewer='Agent', notes='Visible content checked.',
+                                      edit_success='not_applicable', preservation='not_applicable')
+            with self.assertRaises(b.BenchmarkError):
+                b.review_output(args)
+            b.append_jsonl(root / 'reviews.jsonl', {**output, 'edit_success': 'not_applicable', 'preservation': 'not_applicable'})
+            self.assertFalse(b.summarize(root)['visual_review_complete'])
+            args.label = 'instruction_followed'
+            b.review_output(args)
+            self.assertTrue(b.summarize(root)['visual_review_complete'])
 
 
 if __name__ == '__main__':
