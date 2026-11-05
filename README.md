@@ -4,13 +4,20 @@ Reproducible image-generation and editing cases for comparing policy-related fai
 
 **Current revision:** [violence-v2](datasets/violence-v2/README.md) starts nine of its twelve edits with existing violence or injuries and scores edit success separately from preservation. It requires a frozen reference and provenance manifest before comparison. Select it explicitly with `--dataset datasets/violence-v2`; the default remains the original revision for reproducibility.
 
+**Photo screening revision:** [violence-v3](datasets/violence-v3/README.md) uses 19
+color photographs and 38 fixed edits to explore provider differences. Selection is
+based on reviewed task completion and must be followed by fresh confirmation;
+its results describe a curated comparison, not a representative provider ranking.
+
 **Original revision:** Eight independently generated synthetic reference images are included with hashes, generation prompts, visual checks, and redistribution metadata. Live provider coverage depends on the credentials supplied at execution time. No measured provider advantage is established by the offline checks.
 
 This is a small, selected comparison suite maintained by Segmind. It tests concrete creative tasks, including contact sports, mild injuries, weapons, threats, horror makeup, and fictional death. It is not a representative sample of all user requests or an exhaustive gore benchmark.
 
 ## Start here
 
-Requires Python 3.10 or newer. The runner uses the Python standard library.
+Use Python **3.15.2**, pinned in `.python-version`. Install that official stable
+security release before running the commands below. The runner uses the Python
+standard library.
 
 ```bash
 git clone https://github.com/segmind/nano-banana-content-policy-test.git

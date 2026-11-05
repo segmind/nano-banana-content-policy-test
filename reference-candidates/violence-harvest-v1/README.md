@@ -6,12 +6,11 @@ benchmark or authorize public redistribution. Source rights are recorded in
 [manifest.json](manifest.json) and [ATTRIBUTION.md](ATTRIBUTION.md). The repository
 license does not replace third-party media rights.
 
-The pool contains 25 distinct candidates: one StockSnap CC0 photograph, two
-Commons CC0 photographs, 17 U.S. government training photographs, three frames
-from the original 1968 *Night of the Living Dead*, and two from the original 1963
-*Dementia 13*. Twenty images are color photographs. Twenty-two candidates show
-strong practical-effects violence, and three provide moderate comparisons.
-These are descriptive screening labels, not provider scores or human selections.
+The active pool contains 20 color photographs: one StockSnap CC0 photograph, two
+Commons CC0 photographs and 17 U.S. government training photographs. Eighteen
+show strong practical-effects violence and two are moderate comparisons. The five
+original-film frames are excluded for inadequate image quality; their IDs and
+exclusion reasons remain in the catalog. Screening labels are not provider scores.
 
 ## Local review
 
@@ -73,19 +72,16 @@ does not fetch URLs or execute extraction commands from the manifest.
 ## Rights boundaries and sourcing gaps
 
 Three files have explicit CC0 dedications. Other likeness, privacy, publicity,
-trademark and stage-production rights remain unreviewed. The 22 public-domain
-claims are scoped to the United States, including government works and the two
-original films. They require review before public redistribution. *Dementia 13*
-can remain protected in other countries. No claim is made for later colorizations,
-remakes, new edits, soundtracks or added material.
+trademark and stage-production rights remain unreviewed. The 17 public-domain
+claims are scoped to the United States, covering the government photographs. The maintainer accepts the U.S.-only copyright basis for the photo comparison;
+other jurisdictions and noncopyright rights remain unverified.
 
 Military imagery retains simulated-training context and the applicable
 nonendorsement notice. It must not be presented as a real attack or as endorsement
 of Segmind or a competing provider. Candidate C011 has an unverified subject age;
 C020 retains a source-caption mismatch for review. The photographs favor wound
 effects and casualty aftermath over active combat. Clearer color stabbing and
-shooting action remains a sourcing gap; the original films contribute monochrome
-axe violence, feeding effects and a gunshot reaction. Any future benchmark
+shooting action remains a sourcing gap; the rejected film frames are not used to fill that gap. Any future benchmark
 selection must separately assess identity, adult-subject requirements, confounds
 from mannequins or makeup application, jurisdiction and redistribution rights.
 

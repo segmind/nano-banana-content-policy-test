@@ -138,10 +138,10 @@ class CandidateReviewTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1] / "reference-candidates/violence-harvest-v1"
         catalog = review.validate_collection(root, require_media=False)
         candidates = catalog["candidates"]
-        self.assertEqual(len(candidates), 25)
-        self.assertEqual(len({item["sha256"] for item in candidates}), 25)
+        self.assertEqual(len(candidates), 20)
+        self.assertEqual(len({item["sha256"] for item in candidates}), 20)
         self.assertEqual(sum(item["license"] == "CC0-1.0" for item in candidates), 3)
-        self.assertEqual(sum(item["film"] is not None for item in candidates), 5)
+        self.assertEqual(sum(item["film"] is not None for item in candidates), 0)
         for item in candidates:
             self.assertEqual(item["dataset_selection_status"], "pending_review")
             self.assertTrue(item["transformations"])
