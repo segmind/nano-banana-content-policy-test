@@ -47,9 +47,8 @@ For this policy comparison, a returned image is an API outcome regardless of whe
 For the included image edits, optional reviews use `edit_success` and
 `preservation` scores bound to the saved output checksum. Legacy fidelity labels
 remain supported for historical runs and text-generation records. Record the
-reviewer, date and notes without rewriting native API evidence. A strict visual
-pass in `comparison.py` requires successful editing and preserved content; it is
-not the primary policy measure.
+reviewer, date and notes without rewriting native API evidence. The public comparison never reads visual-review labels to decide a case pass.
+Those labels remain separate evidence for anyone studying image quality.
 
 When adding controlled contrasts, hold the source image constant where possible
 and change only the operation being studied, such as removing versus preserving
@@ -57,17 +56,42 @@ an existing injury. Reference-to-text counterparts are descriptive comparisons,
 not clean causal tests, because the generation task differs. Freeze the complete
 case pool before inference and give all cases the same planned repeat count.
 
-## Publish useful examples with a clear scope
+## Public comparison and counting rules
 
-The blog may focus on examples where Segmind completes a requested task that another endpoint rejects. Label these as selected examples and include all repetitions for each highlighted case, not just the best-looking attempt.
+Use `comparison.py report` to compare explicit saved runs. Its single table
+shows model, provider and cases passed; the linked JSON carries per-case
+counts, native-outcome totals and provenance. Providers use the same scoring
+rule and red-to-green color scale and appear in alphabetical order. There is no
+vendor-gap score or automatic selection to favor one provider.
 
-Suggested disclosure:
+A case passes only when every planned repetition returns a saved, valid image
+without an output-fetch error. This is image-return completion, not a judgment
+about lighting fidelity, censorship, artistic quality or whether a refusal was
+correct under a provider's policy. If three repetitions are planned, one image
+and two policy refusals do not constitute a case pass. Report case counts and
+attempt counts separately.
 
-> These examples were selected to illustrate cases where Segmind completed the requested task and another tested endpoint did not. The linked results identify the exact inputs, model profiles, account configuration, and all attempts for these examples.
+A row receives a rate and color only when its planned evidence is complete and
+contains no operational or unexplained outcomes. Missing credentials remain
+“Not run.” Missing attempts, technical failures, other refusals and unresolved
+responses stay incomplete and gray. A generic 422 is not an explicit policy
+refusal. Output files, checksums, structured policy signals and input/model
+identities are checked before counting.
 
-For a headline about all 15 cases, publish the complete 15-case run, including neutral and unfavorable results. If cases are selected after observing outcomes, label the release a **curated comparison suite** and state that selection rule. Its results establish what happened on those selected examples, not a general ranking of providers.
+Runs must have matching dataset and reference-manifest hashes, case snapshots
+and repetition plans. The same model must have the same profile settings across
+providers. Never combine a single-case smoke run with a full dataset run or
+choose the most favorable duplicate run automatically.
 
-Do not infer why a provider accepts more cases from results alone. Moderation settings, account configuration, backend routing, model revision, and random variation are possible explanations, not established causes.
+The included cases were selected using earlier outcomes. Reports disclose that
+curation even when new scoring rules are applied. Historical selection metadata
+is provenance, not an active optimization policy. A neutral tool does not turn
+this dataset into an independently selected or representative sample. Retain all
+planned results, including unfavorable ones, and keep new model results separate.
+
+Do not infer why a provider accepts more cases from results alone. Account
+configuration, default settings, backend routing, model revision and variation
+are possible explanations, not established causes.
 
 ## Adding another category or provider
 

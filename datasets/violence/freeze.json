@@ -1,6 +1,6 @@
 {
-  "dataset_sha256": "7f0ae05b3b73e09806c59674a2ec6a2615a041b6f9bf9138196908ce0ec370f8",
+  "dataset_sha256": "1366ccd22c03e29048f964638f4f5120468e1c59429d00714b88fce7459958c6",
   "assets_manifest_sha256": "6de33694e8ee64e280a3cb26f5f2b8dad707d8e078d918630eb495a5fcedae54",
-  "frozen_at": "2026-11-06T05:57:57.253+00:00",
-  "reviewer": "Maintainer-assisted consolidation: dataset identity renamed; selected prompts, reference bytes and provenance unchanged"
+  "frozen_at": "2026-11-06T06:30:18.415+00:00",
+  "reviewer": "Maintainer-assisted protocol review: equal image-return scoring for both providers; original case prompts and reference bytes unchanged; previous selection retained as historical provenance"
 }
