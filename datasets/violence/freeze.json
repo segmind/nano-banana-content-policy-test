@@ -1,6 +1,6 @@
 {
-  "dataset_sha256": "7f0ae05b3b73e09806c59674a2ec6a2615a041b6f9bf9138196908ce0ec370f8",
-  "assets_manifest_sha256": "6de33694e8ee64e280a3cb26f5f2b8dad707d8e078d918630eb495a5fcedae54",
-  "frozen_at": "2026-11-06T05:57:57.253+00:00",
-  "reviewer": "Maintainer-assisted consolidation: dataset identity renamed; selected prompts, reference bytes and provenance unchanged"
+  "dataset_sha256": "0c34d5e4ed74fc20a28c5c17c6f43422faaedf835f1b1397bb1564d8ef21a3c1",
+  "assets_manifest_sha256": "8ac7fede000bbefda9192d4cbdf00ad3d743a7be0cba667bb61e1079d7fdc18a",
+  "frozen_at": "2026-11-06T13:04:05.293+00:00",
+  "reviewer": "Maintainer-assisted content validity review: gun-specific prompts receive new IDs; broad subject/action review required; mismatched cases excluded symmetrically; original evidence retained"
 }

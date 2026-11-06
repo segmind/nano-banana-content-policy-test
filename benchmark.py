@@ -56,6 +56,7 @@ ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 SHA_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 REVIEW_LABELS = ("instruction_followed", "partially_followed", "requested_content_removed", "unusable_output")
 EDIT_SCORES = ("success", "partial", "failed", "not_applicable")
+CONTENT_MATCH_SCORES = ("matches", "mismatch", "uncertain")
 PRESERVATION_SCORES = ("preserved", "partial", "not_preserved", "not_applicable")
 INDEPENDENT_REVIEW_SCHEMAS = ("independent_axes_v1", "independent_axes_v2")
 ENV_NAMES = {"SEGMIND_API_KEY", "FAL_KEY", "GOOGLE_CLOUD_PROJECT", "GCP_PROJECT", "GOOGLE_ACCESS_TOKEN"}
@@ -888,10 +889,13 @@ def summarize(output_dir: Path) -> dict:
         for line in review_path.read_text(encoding="utf-8").splitlines():
             if line.strip():
                 review = json.loads(line)
-                reviews[review["sha256"] + ":" + review["path"]] = review
+                key = review["sha256"] + ":" + review["path"]
+                reviews[key] = {**reviews.get(key, {}), **{field: value for field, value in review.items() if value is not None}}
     visual_counts = {}
     axis_counts = {}
+    content_counts = {}
     for provider, outputs in images.items():
+        content_counts[provider] = {score: sum(reviews.get(key, {}).get("content_match", "unreviewed") == score for key in outputs) for score in (*CONTENT_MATCH_SCORES, "unreviewed")}
         labels = {label: 0 for label in (*REVIEW_LABELS, "unreviewed")}
         for key, output in outputs.items():
             if independent_reviews and output["mode"] == "image_edit":
@@ -940,10 +944,12 @@ def summarize(output_dir: Path) -> dict:
         "outcome_counts": counts,
         "provider_metrics": provider_metrics,
         "visual_review_counts": visual_counts,
+        "content_review_counts": content_counts,
+        "content_review_complete": all(counts["unreviewed"] == 0 and counts["uncertain"] == 0 for counts in content_counts.values()),
         "visual_review_label_scope": "text_to_image_only" if independent_reviews else "all_outputs",
         "independent_review_counts": axis_counts,
         "visual_review_complete": reviews_complete and any(images.values()),
-        "note": "Counts cover active providers only; missing-credential skips are excluded. image_returned requires human fidelity review; unknown/operational outcomes are not policy refusals.",
+        "note": "Native counts cover active providers only; missing-credential skips are excluded. Image return does not establish intended content; public comparisons require content-match review. Unknown or operational outcomes are not policy refusals.",
     }
 
 
@@ -966,14 +972,20 @@ def review_output(args: argparse.Namespace) -> None:
         raise BenchmarkError("Output bytes changed; review cannot be attached to different image bytes")
     if not args.reviewer.strip() or not args.notes.strip():
         raise BenchmarkError("A reviewer and notes explaining the visual checks are required")
+    content_match = getattr(args, "content_match", None)
+    if content_match is not None and content_match not in CONTENT_MATCH_SCORES:
+        raise BenchmarkError("Content match must be matches, mismatch or uncertain")
+    case = next((case for case in run.get("cases_snapshot", []) if case["id"] == case_id), None)
+    if content_match is not None and case is None:
+        raise BenchmarkError("Content review requires the exact saved case and prompt")
     scores = {}
-    if run.get("review_schema") in INDEPENDENT_REVIEW_SCHEMAS:
+    quality_review = content_match is None or any(getattr(args, field, None) is not None for field in ("edit_success", "preservation"))
+    if run.get("review_schema") in INDEPENDENT_REVIEW_SCHEMAS and quality_review:
         for field, allowed in (("edit_success", EDIT_SCORES), ("preservation", PRESERVATION_SCORES)):
             score = getattr(args, field, None)
             if score not in allowed:
                 raise BenchmarkError("Independent review requires --edit-success and --preservation")
             scores[field] = score
-        case = next((case for case in run["cases_snapshot"] if case["id"] == case_id), None)
         if case is None:
             raise BenchmarkError("Case is absent from the run snapshot")
         is_edit = case["mode"] == "image_edit"
@@ -981,8 +993,10 @@ def review_output(args: argparse.Namespace) -> None:
             raise BenchmarkError("Image edits need both axes scored; text generation uses not_applicable")
         if not is_edit and args.label not in REVIEW_LABELS:
             raise BenchmarkError("Text generation requires a fidelity --label")
-    if args.label not in REVIEW_LABELS and (args.label is not None or not scores):
+    if args.label not in REVIEW_LABELS and (args.label is not None or (not scores and content_match is None)):
         raise BenchmarkError("A valid visual --label is required for legacy reviews")
+    if content_match is not None:
+        scores.update(content_match=content_match, case_id=case_id, prompt_sha256=digest(case["prompt"].encode("utf-8")))
     append_jsonl(root / "reviews.jsonl", {"path": output["path"], "sha256": output["sha256"],
                  "label": args.label, **scores, "reviewer": args.reviewer, "notes": args.notes, "reviewed_at": utc_now()})
     (root / "summary.json").write_text(json.dumps(summarize(root), indent=2) + "\n", encoding="utf-8")
@@ -1027,6 +1041,7 @@ def run_benchmark(args: argparse.Namespace, dataset: dict, assets_doc: dict,
         "python_version": sys.version, "python_implementation": sys.implementation.name,
         "profile": profile, "cases_snapshot": cases,
         "review_schema": dataset.get("review_schema"), "reference_freeze": frozen,
+        "dataset_selection": dataset.get("selection", {}),
         "provider_order": "Rotate provider order by case and repeat; no inference retries",
         "concurrency": concurrency,
         "note": "Private run evidence. Review before committing any result files.",
@@ -1113,6 +1128,7 @@ def parser() -> argparse.ArgumentParser:
     review.add_argument("--label", choices=REVIEW_LABELS)
     review.add_argument("--edit-success", choices=EDIT_SCORES)
     review.add_argument("--preservation", choices=PRESERVATION_SCORES)
+    review.add_argument("--content-match", choices=CONTENT_MATCH_SCORES, help="Broad subject/action match; required for scoring returned images in public comparisons")
     review.add_argument("--reviewer", required=True)
     review.add_argument("--notes", required=True)
     return main

@@ -49,7 +49,7 @@ class ModelCliTests(unittest.TestCase):
                 self.assertEqual(plans[0]['profile_id'], model)
                 self.assertEqual(plans[0]['model_family'], MODELS[model][0])
                 self.assertEqual(plans[0]['dataset_id'], 'violence')
-                self.assertEqual(plans[0]['planned_inference_requests'], 135)
+                self.assertEqual(plans[0]['planned_inference_requests'], plans[0]['cases']*3*len(b.PROVIDERS))
 
     def test_model_argument_is_required_and_conflicting_flags_are_rejected(self):
         for command in ('plan', 'run'):
