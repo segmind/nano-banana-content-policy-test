@@ -8,6 +8,7 @@ provider accounts and can incur charges. An image return is not a quality verdic
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import base64
 import binascii
 import hashlib
@@ -23,6 +24,7 @@ import shlex
 import subprocess
 import sys
 import time
+import threading
 from typing import Any, Callable
 import urllib.error
 import urllib.parse
@@ -55,7 +57,9 @@ SHA_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 REVIEW_LABELS = ("instruction_followed", "partially_followed", "requested_content_removed", "unusable_output")
 EDIT_SCORES = ("success", "partial", "failed", "not_applicable")
 PRESERVATION_SCORES = ("preserved", "partial", "not_preserved", "not_applicable")
+INDEPENDENT_REVIEW_SCHEMAS = ("independent_axes_v1", "independent_axes_v2")
 ENV_NAMES = {"SEGMIND_API_KEY", "FAL_KEY", "GOOGLE_CLOUD_PROJECT", "GCP_PROJECT", "GOOGLE_ACCESS_TOKEN"}
+APPEND_LOCK = threading.Lock()
 
 
 class BenchmarkError(Exception):
@@ -140,7 +144,7 @@ def load_dataset(dataset_dir: Path) -> tuple[dict, dict]:
             raise BenchmarkError(f"{case['id']}: unsupported mode")
         if (case["mode"] == "image_edit") != bool(refs):
             raise BenchmarkError(f"{case['id']}: image_edit needs references; text_to_image must have none")
-    if cases.get("review_schema") == "independent_axes_v1":
+    if cases.get("review_schema") in INDEPENDENT_REVIEW_SCHEMAS:
         validate_reference_design(cases, assets)
     elif cases.get("review_schema") is not None:
         raise BenchmarkError("Unsupported review_schema")
@@ -148,7 +152,7 @@ def load_dataset(dataset_dir: Path) -> tuple[dict, dict]:
 
 
 def validate_reference_design(dataset: dict, assets: dict) -> None:
-    """Protect the existing-violence suite's controlled comparisons."""
+    """Validate independent axes while preserving the original controlled design."""
     cases = dataset["cases"]
     references = {asset["id"]: asset for asset in assets["assets"]}
     for asset in references.values():
@@ -156,8 +160,18 @@ def validate_reference_design(dataset: dict, assets: dict) -> None:
             raise BenchmarkError("Each reference must declare contains_existing_violence")
     edits = [case for case in cases if case["mode"] == "image_edit"]
     violent_edits = [case for case in edits if any(references[ref]["contains_existing_violence"] for ref in case["reference_asset_ids"])]
-    if (len(cases), len(edits), len(violent_edits), len(references)) != (15, 12, 9, 8):
-        raise BenchmarkError("Existing-violence design requires 15 cases, 12 edits, 9 violent-reference edits and 8 assets")
+    counts = (len(cases), len(edits), len(violent_edits), len(references))
+    original_design = dataset.get("review_schema") == "independent_axes_v1"
+    if original_design:
+        if counts != (15, 12, 9, 8):
+            raise BenchmarkError("Existing-violence design requires 15 cases, 12 edits, 9 violent-reference edits and 8 assets")
+    else:
+        design = dataset.get("design")
+        fields = ("cases", "image_edit_cases", "existing_violence_edit_cases", "reference_assets")
+        if not isinstance(design, dict) or any(type(design.get(field)) is not int or design[field] < 0 for field in fields):
+            raise BenchmarkError("Independent-axis design requires explicit nonnegative counts")
+        if tuple(design[field] for field in fields) != counts:
+            raise BenchmarkError("Declared independent-axis design does not match the cases and references")
     used = {ref for case in edits for ref in case["reference_asset_ids"]}
     if used != set(references):
         raise BenchmarkError("Every fixture must be used")
@@ -169,7 +183,7 @@ def validate_reference_design(dataset: dict, assets: dict) -> None:
             if case["mode"] == "image_edit" and not checks:
                 raise BenchmarkError(f"{case['id']}: image edits need separate edit and preservation checks")
     pairs = dataset.get("identical_prompt_pairs")
-    if not isinstance(pairs, list) or not pairs:
+    if not isinstance(pairs, list) or (original_design and not pairs):
         raise BenchmarkError("Declare identical_prompt_pairs for the neutral controls")
     indexed = {case["id"]: case for case in cases}
     for pair in pairs:
@@ -181,7 +195,7 @@ def validate_reference_design(dataset: dict, assets: dict) -> None:
         pair_refs = [indexed[ref]["reference_asset_ids"] for ref in pair]
         single_references = all(len(refs) == 1 for refs in pair_refs)
         clean_and_violent = single_references and {references[refs[0]]["contains_existing_violence"] for refs in pair_refs} == {False, True}
-        if not clean_and_violent:
+        if original_design and not clean_and_violent:
             raise BenchmarkError("Neutral controls need one clean and one violent reference")
     if dataset.get("freeze_required") is not True:
         raise BenchmarkError("Independent-axis datasets require a reference freeze")
@@ -194,7 +208,7 @@ def verify_freeze(dataset_dir: Path, dataset: dict, assets: dict) -> dict | None
     expected = {"dataset_sha256": digest(canonical_bytes(dataset)),
                 "assets_manifest_sha256": digest(canonical_bytes(assets))}
     if any(frozen.get(key) != value for key, value in expected.items()):
-        raise BenchmarkError("Dataset or provenance changed after the freeze; create a new revision")
+        raise BenchmarkError("Dataset or provenance changed after the freeze; review the changes, update the dataset version and replace its freeze")
     if not frozen.get("frozen_at") or not frozen.get("reviewer"):
         raise BenchmarkError("Freeze requires a date and reviewer")
     # A selected-case smoke test must not bypass readiness of other fixtures.
@@ -213,7 +227,7 @@ def freeze_dataset(dataset_dir: Path, dataset: dict, assets: dict, reviewer: str
         with (dataset_dir / "freeze.json").open("x", encoding="utf-8") as stream:
             stream.write(json.dumps(frozen, indent=2) + "\n")
     except FileExistsError as exc:
-        raise BenchmarkError("Freeze already exists; use a new dataset revision for changed inputs") from exc
+        raise BenchmarkError("Freeze already exists; reviewed input changes require an updated dataset version and a deliberately replaced freeze") from exc
 
 
 def select_cases(cases: list[dict], requested: list[str] | None) -> list[dict]:
@@ -254,6 +268,8 @@ def account_modes(values: list[str] | str | None, providers: list[str]) -> dict[
 def load_profile(name: str) -> dict:
     if not ID_PATTERN.fullmatch(name):
         raise BenchmarkError("Use a profile id from profiles/, not a path")
+    if not (ROOT / "profiles" / f"{name}.json").is_file():
+        raise BenchmarkError(f"Unknown model '{name}'. Use 'python3 benchmark.py models' to list model IDs")
     profile = read_json(ROOT / "profiles" / f"{name}.json")
     if profile.get("id") != name or not isinstance(profile.get("family"), str):
         raise BenchmarkError("Profile id or model family is missing or mismatched")
@@ -753,7 +769,7 @@ def save_outputs(client: Any, provider: str, body: Any, destination: Path, prefi
 
 
 def append_jsonl(path: Path, value: dict) -> None:
-    with path.open("a", encoding="utf-8") as stream:
+    with APPEND_LOCK, path.open("a", encoding="utf-8") as stream:
         stream.write(json.dumps(value, sort_keys=True, ensure_ascii=False) + "\n")
         stream.flush()
         os.fsync(stream.fileno())
@@ -849,7 +865,7 @@ def make_plan(dataset: dict, assets: dict, cases: list[dict], profile: dict,
 
 def summarize(output_dir: Path) -> dict:
     run = read_json(output_dir / "run.json")
-    independent_reviews = run.get("review_schema") == "independent_axes_v1"
+    independent_reviews = run.get("review_schema") in INDEPENDENT_REVIEW_SCHEMAS
     case_modes = {case["id"]: case["mode"] for case in run.get("cases_snapshot", [])}
     counts: dict[str, dict[str, int]] = {p: {} for p in run["providers"]}
     total = 0
@@ -951,7 +967,7 @@ def review_output(args: argparse.Namespace) -> None:
     if not args.reviewer.strip() or not args.notes.strip():
         raise BenchmarkError("A reviewer and notes explaining the visual checks are required")
     scores = {}
-    if run.get("review_schema") == "independent_axes_v1":
+    if run.get("review_schema") in INDEPENDENT_REVIEW_SCHEMAS:
         for field, allowed in (("edit_success", EDIT_SCORES), ("preservation", PRESERVATION_SCORES)):
             score = getattr(args, field, None)
             if score not in allowed:
@@ -974,6 +990,10 @@ def review_output(args: argparse.Namespace) -> None:
 
 def run_benchmark(args: argparse.Namespace, dataset: dict, assets_doc: dict,
                   cases: list[dict], profile: dict, providers: list[str], client: Any | None = None) -> Path:
+    concurrency = getattr(args, "concurrency", 1)
+    if type(concurrency) is not int or not 1 <= concurrency <= 4:
+        raise BenchmarkError("Concurrency must be an integer from 1 to 4")
+    supplied_client = client
     requested_providers = list(providers)
     auth, skipped = credentials(requested_providers)
     providers = [provider for provider in requested_providers if provider in auth]
@@ -1004,24 +1024,52 @@ def run_benchmark(args: argparse.Namespace, dataset: dict, assets_doc: dict,
         "account_modes": modes, "dataset_sha256": digest(canonical_bytes(dataset)),
         "assets_manifest_sha256": digest(canonical_bytes(assets_doc)),
         "profile_sha256": digest(canonical_bytes(profile)), "runner_sha256": digest(Path(__file__).read_bytes()),
+        "python_version": sys.version, "python_implementation": sys.implementation.name,
         "profile": profile, "cases_snapshot": cases,
         "review_schema": dataset.get("review_schema"), "reference_freeze": frozen,
         "provider_order": "Rotate provider order by case and repeat; no inference retries",
+        "concurrency": concurrency,
         "note": "Private run evidence. Review before committing any result files.",
     }
     (output_dir / "run.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     for provider, reason in skipped.items():
         print(f"{provider}: skipped ({reason})", flush=True)
+    jobs = []
+    for repeat in range(1, args.repeats + 1):
+        for index, case in enumerate(cases) if providers else []:
+            offset = (index + repeat - 1) % len(providers)
+            jobs.extend((repeat, case, provider) for provider in providers[offset:] + providers[:offset])
+
+    def execute(job):
+        repeat, case, provider = job
+        # Separate clients and token state prevent concurrent attempts sharing
+        # an HTTP opener or a refreshed Vertex credential. Submission IDs still
+        # reach the locked, fsynced ledger before polling starts.
+        attempt_client = client if concurrency == 1 else supplied_client or HTTPClient(timeout=min(args.timeout, 60))
+        return run_attempt(attempt_client, provider, profile, case, prepared, dict(auth[provider]), repeat,
+                           run_id, output_dir, modes[provider], args.timeout, list(secrets))
+
+    def record_result(record):
+        append_jsonl(output_dir / "results.jsonl", record)
+        print(f"{record['case_id']} {record['provider']} repeat={record['repeat']}: {record['outcome']}", flush=True)
+
     try:
-        for repeat in range(1, args.repeats + 1):
-            if not providers:
-                break
-            for index, case in enumerate(cases):
-                offset = (index + repeat - 1) % len(providers)
-                for provider in providers[offset:] + providers[:offset]:
-                    record = run_attempt(client, provider, profile, case, prepared, auth[provider], repeat, run_id, output_dir, modes[provider], args.timeout, secrets)
-                    append_jsonl(output_dir / "results.jsonl", record)
-                    print(f"{case['id']} {provider} repeat={repeat}: {record['outcome']}", flush=True)
+        if concurrency == 1:
+            for job in jobs:
+                record_result(execute(job))
+        else:
+            # Dispatch one bounded batch at a time. An interruption must never
+            # leave the rest of the paid schedule queued in a thread executor.
+            with ThreadPoolExecutor(max_workers=concurrency) as executor:
+                for start in range(0, len(jobs), concurrency):
+                    pending = [executor.submit(execute, job) for job in jobs[start:start + concurrency]]
+                    try:
+                        for future in as_completed(pending):
+                            record_result(future.result())
+                    except BaseException:
+                        for future in pending:
+                            future.cancel()
+                        raise
         if providers:
             manifest["status"] = "complete"
     finally:
@@ -1036,9 +1084,10 @@ def run_benchmark(args: argparse.Namespace, dataset: dict, assets_doc: dict,
 def parser() -> argparse.ArgumentParser:
     main = argparse.ArgumentParser(description=__doc__)
     commands = main.add_subparsers(dest="command", required=True)
+    commands.add_parser("models", help="List supported model IDs, families and providers without network access")
     for command in ("validate", "plan", "run", "freeze"):
         item = commands.add_parser(command)
-        item.add_argument("--dataset", type=Path, default=ROOT / "datasets" / "violence-v1")
+        item.add_argument("--dataset", type=Path, default=ROOT / "datasets" / "violence", help="Dataset directory (default: the included violence dataset)")
         item.add_argument("--case", action="append", help="Select an explicit case id; repeat to select more")
         item.add_argument("--provider", choices=(*PROVIDERS, "all"), default="all")
         if command == "freeze":
@@ -1046,10 +1095,13 @@ def parser() -> argparse.ArgumentParser:
         elif command == "validate":
             item.add_argument("--require-assets", action="store_true", help="Require ready local images, rights metadata and checksums; still offline")
         else:
-            item.add_argument("--profile", required=True, help="Explicit profile id, e.g. nano-banana-pro")
+            model = item.add_mutually_exclusive_group(required=True)
+            model.add_argument("--model", dest="profile", metavar="MODEL", help="Model ID from the models command, e.g. nano-banana-2.1")
+            model.add_argument("--profile", dest="profile", help="Compatibility alias for --model")
             item.add_argument("--repeats", type=int, default=3)
             item.add_argument("--account-mode", action="append", help="standard, approved, or unknown; or repeat with provider=mode (default unknown)")
         if command == "run":
+            item.add_argument("--concurrency", type=int, default=1, help="Concurrent attempts, 1 to 4; recorded in run metadata")
             item.add_argument("--env-file", type=Path, help="Read literal provider assignments without executing a shell; exported variables take precedence")
             item.add_argument("--output", type=Path, help="New directory for run evidence; never overwrites an existing run")
             item.add_argument("--timeout", type=float, default=300, help="Per-inference budget in seconds, including synchronous Vertex inference; queue HTTP calls use at most 60 seconds")
@@ -1069,6 +1121,12 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
+        if args.command == "models":
+            models = []
+            for path in sorted((ROOT / "profiles").glob("*.json"), key=lambda path: path.stem):
+                models.append(load_profile(path.stem))
+            print(json.dumps({"models": models}, indent=2))
+            return 0
         if args.command == "summarize":
             print(json.dumps(summarize(args.run_directory), indent=2))
             return 0

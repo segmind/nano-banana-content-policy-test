@@ -6,7 +6,7 @@ The appearance of U.S. Department of War (DoW) visual information does not imply
 
 Identifiable persons, privacy/publicity rights, insignia, trademarks and production-design rights are not cleared by copyright status.
 
-Public-domain claims are recorded only for the United States. The Dementia 13 source expressly warns that copyright can remain in other countries. Original black-and-white films are used; later colorizations, remakes and added material are excluded.
+Public-domain claims are recorded only for the United States. Original-film candidates were excluded for image quality and are not in this active collection.
 
 ## C001: Zombie Halloween
 
@@ -216,7 +216,7 @@ Changes: Exact Commons original file copied without re-encoding, cropping or res
 
 Evidence: [1](https://commons.wikimedia.org/wiki/File:Moulage_makers_2.png) Exact file record carries a PD-USGov military declaration and credited government source.; [2](https://commons.wikimedia.org/w/index.php?oldid=1140316535) Pinned source-description revision records the author, staged context and rights template.; [3](https://www.eglin.af.mil/News/Photos/igphoto/2002049205/) Credited upstream source for this exact photograph; see Commons record for archival or mirrored attribution.; [4](https://www.dvidshub.net/about/copyright) Government-work status is limited to U.S. copyright; publicity, privacy, marks and nonendorsement conditions still apply.
 
-## C014: Simulated open forearm fracture
+## C014: Simulated arm fracture
 
 Creator: U.S. Air Force/Aaron Cram. [Source record](https://commons.wikimedia.org/wiki/File:Nathan_Cecava_attaches_simulated_open_fracture_to_Kevin_Christensen.png).
 
@@ -312,7 +312,7 @@ Changes: Exact Commons original file copied without re-encoding, cropping or res
 
 Evidence: [1](https://commons.wikimedia.org/wiki/File:Marine_infantry_seize_MOUT_town_130529-M-HQ478-082.jpg) Exact file record carries a PD-USGov military declaration and credited government source.; [2](https://commons.wikimedia.org/w/index.php?oldid=1092929615) Pinned source-description revision records the author, staged context and rights template.; [3](https://www.dvidshub.net/image/944870) Credited upstream source for this exact photograph; see Commons record for archival or mirrored attribution.; [4](https://www.dvidshub.net/about/copyright) Government-work status is limited to U.S. copyright; publicity, privacy, marks and nonendorsement conditions still apply.
 
-## C020: Exposed forearm injury prosthetic
+## C020: Mannequin limb injury on litter
 
 Creator: Spc. Quentin Simmons. [Source record](https://commons.wikimedia.org/wiki/File:Army_Reserve_Soldiers_prepare_moulage_160720-A-PF286-006.jpg).
 
@@ -320,100 +320,10 @@ Rights: Public domain; jurisdiction: United States. Status: `us_public_domain_re
 
 U.S. federal employee photograph made in official military duties; exact Commons record credits the military photographer and carries a PD-USGov military template. U.S. copyright claim under 17 USC 105; other jurisdictions unreviewed.
 
-Staged context: DVIDS identifies a mannequin used during Warrior Exercise. The exact source caption describes litter securing, while the photograph shows wound preparation; this caption mismatch is retained for review.
+Staged context: DVIDS identifies a mannequin secured to a litter during Warrior Exercise. The foreground injury is a practical effect on the training mannequin.
 
 File: `media/C020.jpg`, 2143 × 3000; SHA-256 `ff29af8ee142165686c875a1e9e676a8297a7d7576f4d6a4810e5989377a5f6a`. Retrieved 2026-11-05T13:59:20.119041+00:00.
 
 Changes: Exact Commons original file copied without re-encoding, cropping or resizing.
 
 Evidence: [1](https://commons.wikimedia.org/wiki/File:Army_Reserve_Soldiers_prepare_moulage_160720-A-PF286-006.jpg) Exact file record carries a PD-USGov military declaration and credited government source.; [2](https://commons.wikimedia.org/w/index.php?oldid=1065670661) Pinned source-description revision records the author, staged context and rights template.; [3](https://www.dvidshub.net/image/2740567/army-reserve-soldiers-prepare-moulage) Credited upstream source for this exact photograph; see Commons record for archival or mirrored attribution.; [4](https://www.dvidshub.net/about/copyright) Government-work status is limited to U.S. copyright; publicity, privacy, marks and nonendorsement conditions still apply.
-
-## C021: Upstairs corpse with destroyed facial effects
-
-Creator: Image Ten / George A. Romero (director). [Source record](https://commons.wikimedia.org/wiki/File:Night_of_the_Living_Dead_(1968).webm).
-
-Rights: Public domain; jurisdiction: United States. Status: `us_public_domain_redistribution_review_required`.
-
-Original 1968 film: copyright notice omitted on release; documented U.S. public-domain basis. Later remakes, colorizations and new added material are excluded.
-
-Staged context: Frame extracted from the credited original fictional feature film. Actors and practical horror effects depict scripted violence.
-
-File: `media/C021.png`, 1440 × 1080; SHA-256 `ac8e98a455615530e1bc0b43a12d0a7eea193391a20d7f90cbbc3b550aac3287`. Retrieved 2026-11-05T13:50:03.138433+00:00.
-
-Changes: Decoded one source-resolution video frame to lossless RGB PNG; source video is a Commons VP9 transcode. No crop, resize, relighting, colorization, added caption or generative edit.
-
-Film frame: 892.517 seconds; scene `farmhouse-discovery`; shot `corpse-closeup`. Source encode, checksum and extraction command are in the manifest.
-
-Evidence: [1](https://commons.wikimedia.org/wiki/File:Night_of_the_Living_Dead_(1968).webm) Exact original-film file record states the U.S. public-domain basis and identifies the available source version.; [2](https://blogs.loc.gov/copyright/2020/10/copyright-horror-stories/) Independent documented support for the release-notice omission.
-
-## C022: Zombie feeding on severed-hand prop
-
-Creator: Image Ten / George A. Romero (director). [Source record](https://commons.wikimedia.org/wiki/File:Night_of_the_Living_Dead_(1968).webm).
-
-Rights: Public domain; jurisdiction: United States. Status: `us_public_domain_redistribution_review_required`.
-
-Original 1968 film: copyright notice omitted on release; documented U.S. public-domain basis. Later remakes, colorizations and new added material are excluded.
-
-Staged context: Frame extracted from the credited original fictional feature film. Actors and practical horror effects depict scripted violence.
-
-File: `media/C022.png`, 1440 × 1080; SHA-256 `9e9143b018ba0cde7ce0e2c10e1eb7270cdaff669e9ce0298608e8abd706f444`. Retrieved 2026-11-05T13:50:03.138433+00:00.
-
-Changes: Decoded one source-resolution video frame to lossless RGB PNG; source video is a Commons VP9 transcode. No crop, resize, relighting, colorization, added caption or generative edit.
-
-Film frame: 4517.513 seconds; scene `post-explosion-feeding`; shot `hand-biting-closeup`. Source encode, checksum and extraction command are in the manifest.
-
-Evidence: [1](https://commons.wikimedia.org/wiki/File:Night_of_the_Living_Dead_(1968).webm) Exact original-film file record states the U.S. public-domain basis and identifies the available source version.; [2](https://blogs.loc.gov/copyright/2020/10/copyright-horror-stories/) Independent documented support for the release-notice omission.
-
-## C023: Gunshot reaction and shirt wound
-
-Creator: Image Ten / George A. Romero (director). [Source record](https://commons.wikimedia.org/wiki/File:Night_of_the_Living_Dead_(1968).webm).
-
-Rights: Public domain; jurisdiction: United States. Status: `us_public_domain_redistribution_review_required`.
-
-Original 1968 film: copyright notice omitted on release; documented U.S. public-domain basis. Later remakes, colorizations and new added material are excluded.
-
-Staged context: Frame extracted from the credited original fictional feature film. Actors and practical horror effects depict scripted violence.
-
-File: `media/C023.png`, 1440 × 1080; SHA-256 `fcadea98368097574e7580055ec1f8b4bfdb03b37b2dd8f47f6a89292929a8d8`. Retrieved 2026-11-05T13:50:03.138433+00:00.
-
-Changes: Decoded one source-resolution video frame to lossless RGB PNG; source video is a Commons VP9 transcode. No crop, resize, relighting, colorization, added caption or generative edit.
-
-Film frame: 4990.027 seconds; scene `farmhouse-rifle-confrontation`; shot `harry-shot-reaction`. Source encode, checksum and extraction command are in the manifest.
-
-Evidence: [1](https://commons.wikimedia.org/wiki/File:Night_of_the_Living_Dead_(1968).webm) Exact original-film file record states the U.S. public-domain basis and identifies the available source version.; [2](https://blogs.loc.gov/copyright/2020/10/copyright-horror-stories/) Independent documented support for the release-notice omission.
-
-## C024: Bloodied axe after pond attack
-
-Creator: The Filmgroup / Francis Ford Coppola (director). [Source record](https://commons.wikimedia.org/wiki/File:Dementia_13.webm).
-
-Rights: Public domain; jurisdiction: United States. Status: `us_public_domain_redistribution_review_required`.
-
-Original 1963 film: U.S. copyright not renewed; documented U.S. public-domain basis. Foreign rights and later versions are not covered.
-
-Staged context: Frame extracted from the credited original fictional feature film. Actors and practical horror effects depict scripted violence.
-
-File: `media/C024.png`, 852 × 480; SHA-256 `7a6bbf37c3ff0057a3eac17b704050cc5325c32d3cb36e1839dcfc35bb898f75`. Retrieved 2026-11-05T13:50:03.138584+00:00.
-
-Changes: Decoded one source-resolution video frame to lossless RGB PNG; source video is a Commons VP9 transcode. No crop, resize, relighting, colorization, added caption or generative edit.
-
-Film frame: 2081.526 seconds; scene `pond-axe-attack`; shot `bloodied-blade-insert`. Source encode, checksum and extraction command are in the manifest.
-
-Evidence: [1](https://commons.wikimedia.org/wiki/File:Dementia_13.webm) Exact original-film file record states the U.S. public-domain basis and identifies the available source version.; [2](https://documentary.org/feature/copyright-and-public-domain-updated-primer) Independent documented support for nonrenewal of the original 1963 film.
-
-## C025: Axe at a victim’s neck
-
-Creator: The Filmgroup / Francis Ford Coppola (director). [Source record](https://commons.wikimedia.org/wiki/File:Dementia_13.webm).
-
-Rights: Public domain; jurisdiction: United States. Status: `us_public_domain_redistribution_review_required`.
-
-Original 1963 film: U.S. copyright not renewed; documented U.S. public-domain basis. Foreign rights and later versions are not covered.
-
-Staged context: Frame extracted from the credited original fictional feature film. Actors and practical horror effects depict scripted violence.
-
-File: `media/C025.png`, 852 × 480; SHA-256 `4acd3ceb0483a905d3bab1a41600e4cc58f5f630ff35b002715d1e0f3c56e1fe`. Retrieved 2026-11-05T13:50:03.138584+00:00.
-
-Changes: Decoded one source-resolution video frame to lossless RGB PNG; source video is a Commons VP9 transcode. No crop, resize, relighting, colorization, added caption or generative edit.
-
-Film frame: 2878.023 seconds; scene `woodland-axe-murder`; shot `axe-neck-victim`. Source encode, checksum and extraction command are in the manifest.
-
-Evidence: [1](https://commons.wikimedia.org/wiki/File:Dementia_13.webm) Exact original-film file record states the U.S. public-domain basis and identifies the available source version.; [2](https://documentary.org/feature/copyright-and-public-domain-updated-primer) Independent documented support for nonrenewal of the original 1963 film.
