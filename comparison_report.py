@@ -352,6 +352,7 @@ def render_report(report: dict, data_filename: str) -> str:
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Nano Banana content-policy comparison</title><style>{STYLES}</style></head>
 <body><main>
 <header><div><div class="eyebrow">Open comparison · Violence dataset</div><h1>Nano Banana comparison</h1><p class="muted">{report['total_cases']} cases · {report['repeats']} planned repetitions per case · fal and Segmind</p></div><a class="data-link" href="{escape(quote(data_filename))}">View data (JSON)</a></header>
+<p class="muted"><strong>Test suite:</strong> {escape(report['dataset_id'])} · version {escape(report['dataset_version'])}</p>
 <p class="definition"><strong>Passed means an image returned in every planned repetition.</strong> Lighting accuracy and other visual-quality judgments do not affect these counts.</p>
 <table class="results"><caption>Cases passed by model and provider</caption><colgroup><col><col><col></colgroup><thead><tr><th scope="col">Model</th><th scope="col">Provider</th><th scope="col">Cases passed</th></tr></thead><tbody>{''.join(rows)}</tbody></table>
 <div class="legend"><span>Fewer cases passed</span><div class="legend-scale" aria-hidden="true"><div class="gradient"></div><div class="legend-labels"><span>0%</span><span>50%</span><span>100%</span></div></div><span>More cases passed</span><span>Gray = incomplete or not run</span></div>

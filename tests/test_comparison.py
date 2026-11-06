@@ -263,6 +263,15 @@ class MeasurementTests(unittest.TestCase):
         self.assertNotIn('Full screening', page)
         self.assertNotIn('Selected pilot', page)
 
+    def test_report_identifies_the_saved_test_suite_above_the_table(self):
+        report = c.compare_runs([self.root])
+        report['dataset_id'] = 'violence-<saved>'
+        report['dataset_version'] = '1.0.0&original'
+        page = render_report(report, 'results.json')
+        suite = '<strong>Test suite:</strong> violence-&lt;saved&gt; · version 1.0.0&amp;original'
+        self.assertIn(suite, page)
+        self.assertLess(page.index(suite), page.index('<table class="results">'))
+
     def test_incomplete_rows_are_gray_and_exports_exclude_raw_responses(self):
         self.attempt().update(outcome='provider_error', outputs=[], image_count=0, response={'token': 'PRIVATE-MARKER'}, response_headers={'Authorization': 'PRIVATE-MARKER'})
         self.save()
