@@ -130,13 +130,27 @@ Generate a simple report from explicit saved run directories:
 python comparison.py report runs/<run-id> --output runs/comparison/index.html
 ```
 
-Open `runs/comparison/index.html` in a browser. It is a self-contained page with
+Open `runs/comparison/index.html` in a browser. It is an offline page with
 one table: **Model | Provider | Cases passed**. Only fal and Segmind appear,
 in alphabetical order. Higher pass rates use green, lower rates use red, with
 a continuous color scale and visible counts and percentages. No winner, provider
 gap, pilot tiers or image-quality score is shown. A linked JSON export retains the
 underlying counts and provenance without raw provider responses or credentials.
-Share the HTML together with its adjacent `index.data.json` file.
+Above the table, the report identifies the saved suite and explains what it tests.
+Below the results, three reference examples and an expandable list show every
+case's exact prompt, input image and source credit. Examples follow case order,
+independently of provider outcomes. These are input references, not model outputs.
+The full test set is already included in `datasets/violence`; no separate image
+download is needed after cloning this repository.
+
+Share the HTML together with its adjacent `index.data.json` and `index.assets/`
+folder. The report copies the original prepared reference bytes, verifies their
+checksums against the saved run and retains source credits and rights notices.
+It does not fetch remote images. For a custom or older dataset, pass
+`--dataset /path/to/matching-dataset`; its asset manifest must match the run.
+Unavailable local references show a clear preview-unavailable message rather
+than substituting a different image. The JSON includes exact case prompts and
+reference checksums, so recipients can inspect the inputs without a live service.
 
 A case passes when **every planned repetition returns a saved, valid image**.
 For example, with 15 cases and three repetitions, the denominator is 15 cases,

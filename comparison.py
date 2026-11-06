@@ -137,6 +137,7 @@ def measure_run(directory: Path) -> dict:
             'dataset_sha256': run['dataset_sha256'], 'assets_manifest_sha256': run['assets_manifest_sha256'],
             'cases_sha256': b.digest(b.canonical_bytes(sorted(snapshots, key=lambda case: case['id']))),
             'reference_hashes': reference_hashes, 'total_cases': len(cases), 'repeats': repeats,
+            'suite_cases': [{field: case[field] for field in ('id', 'title', 'mode', 'prompt', 'reference_asset_ids', 'operation') if field in case} for case in snapshots],
             'outcome_selected_dataset': selection.get('outcome_selected') if isinstance(selection, dict) else None,
             'started_at': run.get('started_at'), 'finished_at': run.get('finished_at'), 'providers': metrics}
 
@@ -181,6 +182,7 @@ def compare_runs(directories: list[Path]) -> dict:
             'dataset_version': first['dataset_version'], 'dataset_sha256': first['dataset_sha256'],
             'assets_manifest_sha256': first['assets_manifest_sha256'], 'cases_sha256': first['cases_sha256'],
             'reference_hashes': references, 'total_cases': first['total_cases'],
+            'suite_cases': first['suite_cases'],
             'repeats': first['repeats'], 'pass_definition': PASS_DEFINITION, 'dataset_scope': scope,
             'rows': [rows[key] for key in sorted(rows)]}
 
@@ -190,6 +192,7 @@ def main(argv=None):
     parser.add_argument('command', choices=('summarize', 'report'))
     parser.add_argument('runs', nargs='+', type=Path, help='One explicit saved run per model/provider; all runs must use the same cases')
     parser.add_argument('--output', type=Path, help='HTML report path, e.g. runs/comparison/index.html')
+    parser.add_argument('--dataset', type=Path, help='Local dataset directory containing the run\'s reference images and assets.json (defaults to the bundled suite when its manifest matches)')
     args = parser.parse_args(argv)
     try:
         report = compare_runs(args.runs)
@@ -197,7 +200,7 @@ def main(argv=None):
             if args.output is None or args.output.suffix.lower() != '.html':
                 raise b.BenchmarkError('report requires --output with an .html filename')
             from comparison_report import write_report
-            write_report(report, args.output)
+            write_report(report, args.output, dataset_dir=args.dataset)
             print(json.dumps({'report': str(args.output), 'data': str(args.output.with_suffix('.data.json'))}, indent=2))
         else:
             print(json.dumps(report, indent=2))

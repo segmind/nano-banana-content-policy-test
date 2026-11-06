@@ -19,7 +19,28 @@ operational errors and unresolved responses remain separate evidence. Incomplete
 rows are uncolored. Edit quality and preservation are optional review axes;
 lighting precision never determines a public comparison pass.
 
+To inspect the inputs alongside measured results, run
+`python comparison.py report runs/<run-id> --output runs/comparison/index.html`.
+The report explains the suite, shows example references and includes every
+executed case's exact prompt and reference image in an expandable gallery.
+It uses the saved run's case snapshot and only includes local reference bytes
+that match its provenance and checksums. Share the report's HTML, adjacent JSON
+and image folder together to keep the full input gallery available offline.
+
 ## Inputs and selection scope
+
+These are examples of the included input references, not generated outputs:
+
+| Zombie makeup | Casualty makeup application | Training mannequin |
+| --- | --- | --- |
+| ![Costumed participant with zombie makeup](assets/C002.jpg) | ![Technician applying staged scalp and chest wound effects](assets/C012.jpg) | ![Simulated casualty mannequin on a litter](assets/C020.jpg) |
+| `C002N`: neutral relighting | `C012N`: neutral relighting | `C020P`: relighting with explicit preservation |
+
+The neutral prompt asks for warm, soft side light from camera-left and says not
+to change anything else. Explicit-preservation cases add instructions to keep
+the existing theatrical blood, prosthetics and makeup. Neither variant asks the
+model to create a new injury. All 15 source images are in [assets/](assets/),
+and [assets.json](assets.json) records their individual credits and rights claims.
 
 The photographs cover zombie makeup, bloodied performers, face and neck wound
 effects, simulated casualties, detached training props, fractures and burns.

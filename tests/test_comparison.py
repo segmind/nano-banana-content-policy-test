@@ -272,6 +272,100 @@ class MeasurementTests(unittest.TestCase):
         self.assertIn(suite, page)
         self.assertLess(page.index(suite), page.index('<table class="results">'))
 
+    def preview_dataset(self):
+        directory = self.parent / 'dataset'
+        directory.mkdir()
+        (directory / 'reference.png').write_bytes(PNG)
+        manifest = {'assets': [{'id': 'A01', 'path': 'reference.png', 'sha256': b.digest(PNG),
+                               'title': 'Staged effect', 'visual_description': 'Makeup reference',
+                               'creator': 'Fixture creator', 'license': 'CC0-1.0',
+                               'source_page': 'https://example.org/source', 'notices': ['A source notice.']}]}
+        (directory / 'assets.json').write_text(json.dumps(manifest))
+        report = c.compare_runs([self.root])
+        report['assets_manifest_sha256'] = b.digest(b.canonical_bytes(manifest))
+        return directory, report
+
+    def test_full_input_gallery_exports_exact_verified_bytes_prompts_and_credits(self):
+        directory, report = self.preview_dataset()
+        output = self.parent / 'public/index.html'
+        write_report(report, output, dataset_dir=directory)
+        exported = b.read_json(output.with_suffix('.data.json'))
+        self.assertEqual(exported['suite_cases'], report['suite_cases'])
+        ref = exported['suite_references']['A01']
+        self.assertEqual((output.parent / ref['path']).read_bytes(), PNG)
+        self.assertTrue(ref['path'].endswith('.png'))
+        page = output.read_text()
+        self.assertEqual(page.count('<figure class="reference-card">'), 2)
+        self.assertIn(report['suite_cases'][0]['prompt'], page)
+        self.assertIn('Fixture creator', page)
+        self.assertIn('A source notice.', page)
+        self.assertIn('Input references, not generated outputs', page)
+
+    def test_preview_rejects_mismatched_manifest_reference_hash_and_changed_bytes(self):
+        directory, report = self.preview_dataset()
+        output = self.parent / 'public/index.html'
+        changed = copy.deepcopy(report)
+        changed['assets_manifest_sha256'] = '0' * 64
+        with self.assertRaisesRegex(b.BenchmarkError, 'asset manifest'):
+            write_report(changed, output, dataset_dir=directory)
+        changed = copy.deepcopy(report)
+        changed['reference_hashes']['A01'] = '0' * 64
+        with self.assertRaisesRegex(b.BenchmarkError, 'Reference preview bytes'):
+            write_report(changed, output, dataset_dir=directory)
+        (directory / 'reference.png').write_bytes(PNG+b'changed')
+        with self.assertRaisesRegex(b.BenchmarkError, 'Reference preview bytes'):
+            write_report(report, output, dataset_dir=directory)
+        self.assertFalse(output.exists())
+
+    def test_missing_reference_remains_unavailable_without_network_or_substitution(self):
+        directory, report = self.preview_dataset()
+        (directory / 'reference.png').unlink()
+        output = self.parent / 'public/index.html'
+        with patch.object(b, 'HTTPClient', side_effect=AssertionError('No network')):
+            write_report(report, output, dataset_dir=directory)
+        self.assertIn('preview unavailable', output.read_text())
+        self.assertEqual(b.read_json(output.with_suffix('.data.json'))['suite_references'], {})
+
+    def test_report_cli_accepts_an_explicit_matching_reference_dataset(self):
+        directory, report = self.preview_dataset()
+        self.run['assets_manifest_sha256'] = report['assets_manifest_sha256']
+        self.save()
+        output = self.parent / 'public/index.html'
+        with contextlib.redirect_stdout(io.StringIO()):
+            code = c.main(['report', str(self.root), '--dataset', str(directory), '--output', str(output)])
+        self.assertEqual(code, 0)
+        self.assertIn('A01', b.read_json(output.with_suffix('.data.json'))['suite_references'])
+
+    def test_reference_preview_cannot_read_a_path_outside_the_dataset(self):
+        directory, report = self.preview_dataset()
+        manifest = b.read_json(directory / 'assets.json')
+        manifest['assets'][0]['path'] = '../reference.png'
+        (directory / 'assets.json').write_text(json.dumps(manifest))
+        report['assets_manifest_sha256'] = b.digest(b.canonical_bytes(manifest))
+        with self.assertRaisesRegex(b.BenchmarkError, 'escapes the dataset'):
+            write_report(report, self.parent / 'public/index.html', dataset_dir=directory)
+
+    def test_example_selection_does_not_depend_on_provider_results_and_all_cases_appear_once(self):
+        report = c.compare_runs([self.root])
+        report['suite_cases'] *= 3
+        for index, case in enumerate(report['suite_cases']):
+            report['suite_cases'][index] = {**case, 'id': f'EXAMPLE-{index}'}
+        page = render_report(report, 'results.json')
+        self.assertEqual(page.count('<figure class="reference-card">'), 6)
+        self.assertIn('See the remaining 3 cases and exact prompts', page)
+        for index in range(6):
+            self.assertEqual(page.count(f'<figcaption>EXAMPLE-{index} ·'), 1)
+        self.assertLess(page.index('<figcaption>EXAMPLE-5'), page.index('<figcaption>EXAMPLE-1'))
+
+    def test_gallery_escapes_prompt_credit_and_reference_markup(self):
+        report = c.compare_runs([self.root])
+        report['suite_cases'][0]['prompt'] = '<script>prompt</script>'
+        report['suite_references'] = {'A01': {'path': 'index.assets/a.png', 'creator': '<script>credit</script>', 'description': '\" onerror=\"alert(1)'}}
+        page = render_report(report, 'results.json')
+        self.assertNotIn('<script>', page)
+        self.assertNotIn('alt="" onerror=', page)
+        self.assertIn('&lt;script&gt;prompt', page)
+
     def test_incomplete_rows_are_gray_and_exports_exclude_raw_responses(self):
         self.attempt().update(outcome='provider_error', outputs=[], image_count=0, response={'token': 'PRIVATE-MARKER'}, response_headers={'Authorization': 'PRIVATE-MARKER'})
         self.save()
