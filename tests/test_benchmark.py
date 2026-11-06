@@ -296,14 +296,14 @@ class RequestAndEvidenceTests(unittest.TestCase):
         self.assertNotIn("new-token", json.dumps(record))
 
     def test_offline_plan_keeps_all_15_cases_despite_missing_assets(self):
-        directory = b.ROOT / "datasets" / "violence-v1"
+        directory = b.ROOT / "datasets" / "violence"
         cases, assets = b.load_dataset(directory)
         for asset in assets["assets"]:
             asset["status"] = "missing"
         plan = b.make_plan(cases, assets, cases["cases"], b.load_profile("nano-banana-pro"), list(b.PROVIDERS), 3, directory)
         self.assertEqual(plan["planned_inference_requests"], 135)
-        self.assertEqual(plan["image_edit_cases"], 12)
-        self.assertEqual(plan["text_to_image_cases"], 3)
+        self.assertEqual(plan["image_edit_cases"], 15)
+        self.assertEqual(plan["text_to_image_cases"], 0)
         self.assertFalse(plan["assets_ready_locally"])
 
 

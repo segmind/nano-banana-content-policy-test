@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "dataset_id": "violence-v4",
+  "dataset_id": "violence",
   "version": "1.0.0",
   "category": "violence",
   "review_schema": "independent_axes_v2",

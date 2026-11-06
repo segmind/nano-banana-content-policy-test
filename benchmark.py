@@ -208,7 +208,7 @@ def verify_freeze(dataset_dir: Path, dataset: dict, assets: dict) -> dict | None
     expected = {"dataset_sha256": digest(canonical_bytes(dataset)),
                 "assets_manifest_sha256": digest(canonical_bytes(assets))}
     if any(frozen.get(key) != value for key, value in expected.items()):
-        raise BenchmarkError("Dataset or provenance changed after the freeze; create a new revision")
+        raise BenchmarkError("Dataset or provenance changed after the freeze; review the changes, update the dataset version and replace its freeze")
     if not frozen.get("frozen_at") or not frozen.get("reviewer"):
         raise BenchmarkError("Freeze requires a date and reviewer")
     # A selected-case smoke test must not bypass readiness of other fixtures.
@@ -227,7 +227,7 @@ def freeze_dataset(dataset_dir: Path, dataset: dict, assets: dict, reviewer: str
         with (dataset_dir / "freeze.json").open("x", encoding="utf-8") as stream:
             stream.write(json.dumps(frozen, indent=2) + "\n")
     except FileExistsError as exc:
-        raise BenchmarkError("Freeze already exists; use a new dataset revision for changed inputs") from exc
+        raise BenchmarkError("Freeze already exists; reviewed input changes require an updated dataset version and a deliberately replaced freeze") from exc
 
 
 def select_cases(cases: list[dict], requested: list[str] | None) -> list[dict]:
@@ -1087,7 +1087,7 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("models", help="List supported model IDs, families and providers without network access")
     for command in ("validate", "plan", "run", "freeze"):
         item = commands.add_parser(command)
-        item.add_argument("--dataset", type=Path, default=ROOT / "datasets" / "violence-v1")
+        item.add_argument("--dataset", type=Path, default=ROOT / "datasets" / "violence", help="Dataset directory (default: the included violence dataset)")
         item.add_argument("--case", action="append", help="Select an explicit case id; repeat to select more")
         item.add_argument("--provider", choices=(*PROVIDERS, "all"), default="all")
         if command == "freeze":

@@ -3,11 +3,14 @@ import base64
 import contextlib
 import io
 import json
+import os
+from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import patch
 
 import benchmark as b
-from test_benchmark import PNG, PINNED_URL, sample_case
+from test_benchmark import PNG, PINNED_URL, FakeClient, response, sample_case
 
 
 MODELS = {
@@ -39,12 +42,13 @@ class ModelCliTests(unittest.TestCase):
             with self.subTest(model=model):
                 plans = []
                 for flag in ('--model', '--profile'):
-                    code, stdout, stderr = self.invoke(['plan', flag, model, '--dataset', str(b.ROOT/'datasets/violence-v4')])
+                    code, stdout, stderr = self.invoke(['plan', flag, model])
                     self.assertEqual(code, 0, stderr)
                     plans.append(json.loads(stdout))
                 self.assertEqual(plans[0], plans[1])
                 self.assertEqual(plans[0]['profile_id'], model)
                 self.assertEqual(plans[0]['model_family'], MODELS[model][0])
+                self.assertEqual(plans[0]['dataset_id'], 'violence')
                 self.assertEqual(plans[0]['planned_inference_requests'], 135)
 
     def test_model_argument_is_required_and_conflicting_flags_are_rejected(self):
@@ -79,6 +83,30 @@ class ModelCliTests(unittest.TestCase):
                 code, _, stderr = self.invoke(['run', flag, 'nano-banana-2.1'])
             self.assertEqual(code, 0, stderr)
             self.assertEqual(run.call_args.args[4]['id'], 'nano-banana-2.1')
+
+
+class CanonicalRunTests(unittest.TestCase):
+    def test_default_dataset_reaches_the_selected_model_with_exact_reference_bytes(self):
+        client = FakeClient([
+            response({'request_id': 'req-123', 'status_url': 'https://queue.fal.run/status', 'response_url': 'https://queue.fal.run/response'}),
+            response({'status': 'COMPLETED'}),
+            response({'images': [{'url': 'https://example.com/output.png'}]}),
+        ])
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)/'run'
+            with patch.dict(os.environ, {'FAL_KEY': 'local-test'}, clear=True), patch.object(b, 'HTTPClient', return_value=client), contextlib.redirect_stdout(io.StringIO()):
+                code = b.main(['run', '--model', 'nano-banana-2', '--case', 'C002N', '--provider', 'fal', '--repeats', '1', '--output', str(output)])
+            self.assertEqual(code, 0)
+            manifest = b.read_json(output/'run.json')
+            self.assertEqual(manifest['dataset_id'], 'violence')
+            self.assertEqual(manifest['profile_id'], 'nano-banana-2')
+            self.assertEqual(manifest['case_ids'], ['C002N'])
+            submitted = client.calls[0]
+            self.assertEqual(submitted[1], 'https://queue.fal.run/fal-ai/nano-banana-2/edit')
+            data = base64.b64decode(submitted[3]['image_urls'][0].split(',', 1)[1])
+            expected = (b.ROOT/'datasets/violence/assets/C002.jpg').read_bytes()
+            self.assertEqual(data, expected)
+            self.assertEqual(b.summarize(output)['outcome_counts'], {'fal': {'image_returned': 1}})
 
 
 class ModelRequestTests(unittest.TestCase):

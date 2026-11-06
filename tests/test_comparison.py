@@ -139,27 +139,26 @@ class MeasurementTests(unittest.TestCase):
 
 
 class PhotoDesignAndConcurrencyTests(unittest.TestCase):
-    def test_confirmation_keeps_selected_pilot_inputs_and_prompts(self):
-        pilot, pilot_assets = b.load_dataset(b.ROOT/'datasets/violence-v3')
-        confirmation, assets = b.load_dataset(b.ROOT/'datasets/violence-v4')
-        self.assertEqual(len(confirmation['cases']), 15)
-        self.assertEqual(len({case['reference_asset_ids'][0] for case in confirmation['cases']}), 15)
-        self.assertTrue(confirmation['selection']['outcome_selected'])
-        source_cases = {case['id']:case for case in pilot['cases']}
-        source_assets = {asset['id']:asset for asset in pilot_assets['assets']}
-        for case in confirmation['cases']:
-            self.assertEqual(case['prompt'], source_cases[case['id']]['prompt'])
-        for asset in assets['assets']:
-            self.assertEqual(asset['sha256'], source_assets[asset['id']]['sha256'])
-        b.verify_freeze(b.ROOT/'datasets/violence-v3', pilot, pilot_assets)
-        b.verify_freeze(b.ROOT/'datasets/violence-v4', confirmation, assets)
+    def test_single_builtin_dataset_is_ready_frozen_and_used_by_default(self):
+        directories = [path.name for path in (b.ROOT/'datasets').iterdir() if path.is_dir()]
+        self.assertEqual(directories, ['violence'])
+        directory = b.ROOT/'datasets/violence'
+        dataset, assets = b.load_dataset(directory)
+        self.assertEqual(dataset['dataset_id'], 'violence')
+        self.assertEqual(len(dataset['cases']), 15)
+        self.assertEqual(len({case['reference_asset_ids'][0] for case in dataset['cases']}), 15)
+        b.verify_freeze(directory, dataset, assets)
+        commands = {'validate': [], 'freeze': ['--reviewer', 'Test'],
+                    'plan': ['--model', 'nano-banana-2'], 'run': ['--model', 'nano-banana-2']}
+        for command, options in commands.items():
+            self.assertEqual(b.parser().parse_args([command, *options]).dataset, directory)
 
-    def test_new_design_is_explicit_and_original_design_remains_strict(self):
-        dataset, assets = b.load_dataset(b.ROOT / 'datasets/violence-v3')
-        self.assertEqual(len(dataset['cases']), 38)
-        self.assertEqual(len(assets['assets']), 19)
+    def test_design_counts_are_explicit_and_legacy_schema_stays_strict(self):
+        dataset, assets = b.load_dataset(b.ROOT / 'datasets/violence')
+        self.assertEqual(len(dataset['cases']), 15)
+        self.assertEqual(len(assets['assets']), 15)
         changed = copy.deepcopy(dataset)
-        changed['design']['cases'] = 37
+        changed['design']['cases'] = 14
         with self.assertRaises(b.BenchmarkError):
             b.validate_reference_design(changed, assets)
         changed = copy.deepcopy(dataset)

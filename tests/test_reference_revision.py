@@ -13,8 +13,9 @@ from test_benchmark import PNG, FakeClient, sample_assets
 
 class ReferenceRevisionTests(unittest.TestCase):
     def test_design_counts_and_neutral_prompt_are_enforced(self):
-        directory = b.ROOT / 'datasets/violence-v2'
+        directory = b.ROOT / 'datasets/violence'
         dataset, assets = b.load_dataset(directory)
+        dataset['identical_prompt_pairs'] = [[dataset['cases'][0]['id'], dataset['cases'][1]['id']]]
         self.assertEqual(dataset['cases'][0]['prompt'], dataset['cases'][1]['prompt'])
         for change in ('prompt', 'violence', 'checks'):
             changed_dataset, changed_assets = copy.deepcopy(dataset), copy.deepcopy(assets)
