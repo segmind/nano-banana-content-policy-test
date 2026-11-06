@@ -268,6 +268,8 @@ def account_modes(values: list[str] | str | None, providers: list[str]) -> dict[
 def load_profile(name: str) -> dict:
     if not ID_PATTERN.fullmatch(name):
         raise BenchmarkError("Use a profile id from profiles/, not a path")
+    if not (ROOT / "profiles" / f"{name}.json").is_file():
+        raise BenchmarkError(f"Unknown model '{name}'. Use 'python3 benchmark.py models' to list model IDs")
     profile = read_json(ROOT / "profiles" / f"{name}.json")
     if profile.get("id") != name or not isinstance(profile.get("family"), str):
         raise BenchmarkError("Profile id or model family is missing or mismatched")
@@ -1082,6 +1084,7 @@ def run_benchmark(args: argparse.Namespace, dataset: dict, assets_doc: dict,
 def parser() -> argparse.ArgumentParser:
     main = argparse.ArgumentParser(description=__doc__)
     commands = main.add_subparsers(dest="command", required=True)
+    commands.add_parser("models", help="List supported model IDs, families and providers without network access")
     for command in ("validate", "plan", "run", "freeze"):
         item = commands.add_parser(command)
         item.add_argument("--dataset", type=Path, default=ROOT / "datasets" / "violence-v1")
@@ -1092,7 +1095,9 @@ def parser() -> argparse.ArgumentParser:
         elif command == "validate":
             item.add_argument("--require-assets", action="store_true", help="Require ready local images, rights metadata and checksums; still offline")
         else:
-            item.add_argument("--profile", required=True, help="Explicit profile id, e.g. nano-banana-pro")
+            model = item.add_mutually_exclusive_group(required=True)
+            model.add_argument("--model", dest="profile", metavar="MODEL", help="Model ID from the models command, e.g. nano-banana-2.1")
+            model.add_argument("--profile", dest="profile", help="Compatibility alias for --model")
             item.add_argument("--repeats", type=int, default=3)
             item.add_argument("--account-mode", action="append", help="standard, approved, or unknown; or repeat with provider=mode (default unknown)")
         if command == "run":
@@ -1116,6 +1121,12 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
+        if args.command == "models":
+            models = []
+            for path in sorted((ROOT / "profiles").glob("*.json"), key=lambda path: path.stem):
+                models.append(load_profile(path.stem))
+            print(json.dumps({"models": models}, indent=2))
+            return 0
         if args.command == "summarize":
             print(json.dumps(summarize(args.run_directory), indent=2))
             return 0

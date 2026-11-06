@@ -30,7 +30,8 @@ standard library.
 git clone https://github.com/segmind/nano-banana-content-policy-test.git
 cd nano-banana-content-policy-test
 python3 benchmark.py validate
-python3 benchmark.py plan --provider all --profile nano-banana-pro --repeats 3
+python3 benchmark.py models
+python3 benchmark.py plan --provider all --model nano-banana-pro --repeats 3
 ```
 
 Validation and planning are offline and need no API keys. Planning reports the scheduled attempts and missing inputs. The full run requires the reference assets; it will not silently skip them or substitute text-only requests.
@@ -72,14 +73,41 @@ The runner reads exported environment variables. To use a local file, copy `.env
 
 The runner refreshes a `gcloud`-sourced token before each Vertex attempt. An explicitly supplied `GOOGLE_ACCESS_TOKEN` cannot be refreshed by the runner and may expire during a long run; use authenticated `gcloud` for the complete sequential comparison.
 
-Choose the model profile explicitly: `nano-banana` for Gemini 2.5 Flash Image or `nano-banana-pro` for Gemini 3 Pro Image. The same profile must be used across providers in one comparison. See [provider contracts](docs/providers.md) for endpoint mappings and differences.
+Choose a model explicitly with `--model`. `python3 benchmark.py models` lists the
+available IDs, model families, exact provider endpoints and settings offline:
+
+| Model argument | Model family |
+| --- | --- |
+| `nano-banana` | Gemini 2.5 Flash Image, original |
+| `nano-banana-pro` | Gemini 3 Pro Image |
+| `nano-banana-2` | Gemini 3.1 Flash Image |
+| `nano-banana-2-lite` | Gemini 3.1 Flash-Lite Image |
+| `nano-banana-2.1` | Gemini Nano Banana 2.1 |
+
+The same model profile is used across providers in one run. `--profile` remains a
+compatibility alias; supply either flag, not both. Models are never silently
+upgraded or substituted. See [provider contracts](docs/providers.md) for verified
+endpoint mappings and differences.
 
 After the references and credentials are ready:
 
 ```bash
 python3 benchmark.py validate --require-assets
-python3 benchmark.py run --provider all --profile nano-banana-pro --repeats 3
+python3 benchmark.py run --provider all --model nano-banana-pro --repeats 3
 ```
+
+Run another model against the same frozen curated cases by changing only the
+model argument. Each invocation creates a separate evidence directory and skips
+providers without credentials:
+
+```bash
+python3 benchmark.py plan --dataset datasets/violence-v4 --model nano-banana-2.1 --repeats 3
+python3 benchmark.py run --dataset datasets/violence-v4 --model nano-banana-2.1 --env-file .env --repeats 3
+python3 benchmark.py run --dataset datasets/violence-v4 --model nano-banana-2-lite --env-file .env --repeats 3
+```
+
+Replace the model ID with any ID from the table to test that model. The commands
+do not pool different models into a single result or reuse earlier model scores.
 
 A full three-provider run schedules **135 attempts**: 15 cases x 3 providers x 3 repetitions. With only one configured provider, the actual run schedules 45; with two, it schedules 90. Offline planning shows the potential count for the requested providers, while execution records active and skipped providers separately. Requests use the configured accounts and may incur API charges. Choose account-mode labels that reflect the actual accounts; `unknown` must stay unknown if the configuration has not been confirmed.
 
