@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare saved model runs with the same image-return rule for both providers."""
+"""Compare saved runs with the same broad content-validity rule for both providers."""
 from __future__ import annotations
 
 import argparse
@@ -10,7 +10,7 @@ import benchmark as b
 
 
 REPORT_PROVIDERS = ('fal', 'segmind')
-PASS_DEFINITION = 'A case passes when every planned repetition returns a saved, valid image without an output-fetch error. Visual edit-quality scores do not affect this count.'
+PASS_DEFINITION = 'A case passes when every planned repetition returns a valid image reviewed as matching the intended subject and action. Minor visual imperfections are acceptable. Any content mismatch excludes that case from all compared rows; pending content review leaves the comparison unscored.'
 
 
 def read_records(path: Path) -> list[dict]:
@@ -23,7 +23,7 @@ def read_records(path: Path) -> list[dict]:
 
 
 def measure_run(directory: Path) -> dict:
-    """Validate the planned trial matrix and count cases, never visual judgments."""
+    """Validate trial evidence and broad content matches, independently of quality."""
     run = b.read_json(directory/'run.json')
     snapshots = run.get('cases_snapshot')
     repeats = run.get('repeats')
@@ -54,6 +54,10 @@ def measure_run(directory: Path) -> dict:
         raise b.BenchmarkError('Saved model profile checksum changed')
     observed = {}
     reference_hashes = {}
+    content_reviews = {}
+    for review in read_records(directory/'reviews.jsonl'):
+        if review.get('content_match') is not None:
+            content_reviews[(review.get('path'), review.get('sha256'))] = review
     for row in read_records(directory/'results.jsonl'):
         key = row.get('case_id'), row.get('provider'), row.get('repeat')
         if key[0] not in cases or key[1] not in providers or type(key[2]) is not int or not 1 <= key[2] <= repeats or key in observed:
@@ -78,6 +82,7 @@ def measure_run(directory: Path) -> dict:
         outputs = row.get('outputs')
         if not isinstance(outputs, list) or row.get('image_count') != len(outputs):
             raise b.BenchmarkError('Saved output count does not match the attempt')
+        pending, mismatches = 0, []
         for output in outputs:
             if not isinstance(output, dict):
                 raise b.BenchmarkError('Saved output must name a path and checksum')
@@ -88,6 +93,17 @@ def measure_run(directory: Path) -> dict:
             if b.digest(data) != output['sha256']:
                 raise b.BenchmarkError('Output checksum changed after generation')
             b.image_type(data)
+            review = content_reviews.get((output['path'], output['sha256']))
+            if review is None:
+                pending += 1
+                continue
+            identified_review = all(isinstance(review.get(field), str) and review[field].strip() for field in ('reviewer', 'notes'))
+            if review.get('content_match') not in b.CONTENT_MATCH_SCORES or review.get('case_id') != case['id'] or review.get('prompt_sha256') != row['prompt_sha256'] or not identified_review:
+                raise b.BenchmarkError('Content review must identify the exact output, case, prompt, reviewer and reason')
+            if review['content_match'] == 'mismatch':
+                mismatches.append({'path': output['path'], 'sha256': output['sha256'], 'reviewer': review['reviewer'], 'reason': review['notes'], 'reviewed_at': review.get('reviewed_at', 'unknown')})
+            elif review['content_match'] == 'uncertain':
+                pending += 1
         outcome = row.get('outcome')
         if outcome == 'image_returned' and not outputs:
             raise b.BenchmarkError('Image-returned attempt has no saved image')
@@ -97,6 +113,7 @@ def measure_run(directory: Path) -> dict:
             if outputs or b.classify_response(row.get('http_status', 422), row.get('response'), 0) != 'policy_refusal':
                 raise b.BenchmarkError('Policy refusal needs structured native policy evidence and no returned image')
         observed[key] = {'outcome': outcome, 'image_returned': outcome == 'image_returned' and not row.get('output_errors'),
+                         'content_review_pending': pending, 'content_mismatches': mismatches,
                          'other': outcome not in ('image_returned', 'policy_refusal') or bool(row.get('output_errors'))}
     metrics = {}
     for provider in REPORT_PROVIDERS:
@@ -106,16 +123,22 @@ def measure_run(directory: Path) -> dict:
             returned = sum(trial['image_returned'] for trial in trials)
             blocked = sum(trial['outcome'] == 'policy_refusal' for trial in trials)
             other = sum(trial['other'] for trial in trials)
-            passed = len(trials) == repeats and returned == repeats
+            pending = sum(trial['content_review_pending'] for trial in trials)
+            mismatches = [reason for trial in trials for reason in trial['content_mismatches']]
+            passed = len(trials) == repeats and returned == repeats and not pending and not mismatches
             state = 'passed' if passed else 'blocked' if blocked else 'incomplete' if trials else 'not_run'
             case_results.append({'id': case_id, 'title': case.get('title', case_id), 'status': state,
                                  'images_returned': returned, 'policy_blocks': blocked, 'other_outcomes': other,
+                                 'content_review_pending': pending, 'content_mismatches': mismatches,
                                  'recorded_attempts': len(trials), 'planned_attempts': repeats})
         trials = [value for (case_id, p, repeat), value in observed.items() if p == provider]
         active = provider in providers
-        complete = active and run.get('status') == 'complete' and len(trials) == len(cases)*repeats and not any(trial['other'] for trial in trials)
+        evidence_complete = active and run.get('status') == 'complete' and len(trials) == len(cases)*repeats and not any(trial['other'] for trial in trials)
+        pending = sum(trial['content_review_pending'] for trial in trials)
+        complete = evidence_complete and not pending and not any(trial['content_mismatches'] for trial in trials)
         passed = sum(case['status'] == 'passed' for case in case_results) if active else None
         metrics[provider] = {'status': 'complete' if complete else 'incomplete' if active else 'not_run',
+                             'evidence_complete': evidence_complete, 'content_review_pending': pending,
                              'cases_passed': passed, 'total_cases': len(cases), 'pass_rate': passed/len(cases) if complete else None,
                              'images_returned': sum(trial['image_returned'] for trial in trials),
                              'policy_blocks': sum(trial['outcome'] == 'policy_refusal' for trial in trials),
@@ -140,6 +163,33 @@ def measure_run(directory: Path) -> dict:
             'suite_cases': [{field: case[field] for field in ('id', 'title', 'mode', 'prompt', 'reference_asset_ids', 'operation', 'scenario', 'prompt_variant') if field in case} for case in snapshots],
             'outcome_selected_dataset': selection.get('outcome_selected') if isinstance(selection, dict) else None,
             'started_at': run.get('started_at'), 'finished_at': run.get('finished_at'), 'providers': metrics}
+
+
+def apply_content_gate(rows: list[dict], suite_cases: list[dict]) -> tuple[list[dict], int]:
+    """Use one evaluable case set for every compared provider and model."""
+    excluded = {}
+    inputs = {case['id']: case for case in suite_cases}
+    for row in rows:
+        for case in row['cases']:
+            for mismatch in case['content_mismatches']:
+                entry = excluded.setdefault(case['id'], {'id': case['id'], 'prompt': inputs[case['id']]['prompt'], 'reasons': []})
+                entry['reasons'].append({**mismatch, 'model': row['model'], 'provider': row['provider'], 'run_id': row['run_id']})
+    pending = sum(case['content_review_pending'] for row in rows if row['status'] != 'not_run' for case in row['cases'] if case['id'] not in excluded)
+    eligible_count = len(suite_cases)-len(excluded)
+    for row in rows:
+        active = row['status'] != 'not_run'
+        row['total_cases'] = eligible_count
+        row['excluded_cases'] = len(excluded)
+        row['comparison_review_pending'] = pending
+        for case in row['cases']:
+            if case['id'] in excluded:
+                case['pre_exclusion_status'] = case['status']
+                case['status'] = 'excluded'
+        row['cases_passed'] = sum(case['status'] == 'passed' for case in row['cases']) if active else None
+        complete = active and row['evidence_complete'] and not pending and eligible_count > 0
+        row['status'] = 'complete' if complete else 'incomplete' if active else 'not_run'
+        row['pass_rate'] = row['cases_passed']/eligible_count if complete else None
+    return [excluded[key] for key in sorted(excluded)], pending
 
 
 def compare_runs(directories: list[Path]) -> dict:
@@ -176,15 +226,18 @@ def compare_runs(directories: list[Path]) -> dict:
             rows.setdefault((model, provider), {**report['providers'][provider], 'model_id': model,
                             'model': report['model_label'], 'provider': provider, 'run_id': None,
                             'profile_sha256': report['profile_sha256'], 'run_started_at': None, 'run_finished_at': None})
+    ordered_rows = [rows[key] for key in sorted(rows)]
+    excluded, pending = apply_content_gate(ordered_rows, first['suite_cases'])
     selected = [report['outcome_selected_dataset'] for report in reports]
     scope = 'This suite includes cases selected using earlier provider outcomes. Equal scoring does not make this dataset a representative or independently selected sample.' if any(value is True for value in selected) else 'Dataset selection was not independently verified. Results describe these cases, not overall provider performance.'
-    return {'schema_version': '1.0', 'generated_at': b.utc_now(), 'dataset_id': first['dataset_id'],
+    return {'schema_version': '1.1', 'scoring_protocol': 'subject_action_match_v1', 'generated_at': b.utc_now(), 'dataset_id': first['dataset_id'],
             'dataset_version': first['dataset_version'], 'dataset_sha256': first['dataset_sha256'],
             'assets_manifest_sha256': first['assets_manifest_sha256'], 'cases_sha256': first['cases_sha256'],
-            'reference_hashes': references, 'total_cases': first['total_cases'],
+            'reference_hashes': references, 'total_cases': first['total_cases']-len(excluded), 'planned_cases': first['total_cases'],
+            'excluded_cases': excluded, 'content_review_pending': pending,
             'suite_cases': first['suite_cases'],
             'repeats': first['repeats'], 'pass_definition': PASS_DEFINITION, 'dataset_scope': scope,
-            'rows': [rows[key] for key in sorted(rows)]}
+            'rows': ordered_rows}
 
 
 def main(argv=None):
