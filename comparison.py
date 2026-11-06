@@ -137,7 +137,7 @@ def measure_run(directory: Path) -> dict:
             'dataset_sha256': run['dataset_sha256'], 'assets_manifest_sha256': run['assets_manifest_sha256'],
             'cases_sha256': b.digest(b.canonical_bytes(sorted(snapshots, key=lambda case: case['id']))),
             'reference_hashes': reference_hashes, 'total_cases': len(cases), 'repeats': repeats,
-            'suite_cases': [{field: case[field] for field in ('id', 'title', 'mode', 'prompt', 'reference_asset_ids', 'operation') if field in case} for case in snapshots],
+            'suite_cases': [{field: case[field] for field in ('id', 'title', 'mode', 'prompt', 'reference_asset_ids', 'operation', 'scenario', 'prompt_variant') if field in case} for case in snapshots],
             'outcome_selected_dataset': selection.get('outcome_selected') if isinstance(selection, dict) else None,
             'started_at': run.get('started_at'), 'finished_at': run.get('finished_at'), 'providers': metrics}
 
@@ -177,7 +177,7 @@ def compare_runs(directories: list[Path]) -> dict:
                             'model': report['model_label'], 'provider': provider, 'run_id': None,
                             'profile_sha256': report['profile_sha256'], 'run_started_at': None, 'run_finished_at': None})
     selected = [report['outcome_selected_dataset'] for report in reports]
-    scope = 'These curated cases were selected using earlier provider outcomes. Equal scoring does not make this dataset a representative or independently selected sample.' if any(value is True for value in selected) else 'Dataset selection was not independently verified. Results describe these cases, not overall provider performance.'
+    scope = 'This suite includes cases selected using earlier provider outcomes. Equal scoring does not make this dataset a representative or independently selected sample.' if any(value is True for value in selected) else 'Dataset selection was not independently verified. Results describe these cases, not overall provider performance.'
     return {'schema_version': '1.0', 'generated_at': b.utc_now(), 'dataset_id': first['dataset_id'],
             'dataset_version': first['dataset_version'], 'dataset_sha256': first['dataset_sha256'],
             'assets_manifest_sha256': first['assets_manifest_sha256'], 'cases_sha256': first['cases_sha256'],

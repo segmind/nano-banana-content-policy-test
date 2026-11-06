@@ -2,8 +2,10 @@
 
 Compare explicit content-policy blocks and image returns on Segmind, fal, and
 Google Direct through Vertex AI. Every model uses the same included
-[violence dataset](datasets/violence/README.md): **15 image edits using 15 color
-photographs of theatrical injuries, makeup and training props**.
+[violence dataset](datasets/violence/README.md): **32 image edits using 15 staged
+injury photographs and one clean, fictional adult portrait**. Cases include
+relighting existing effects and adding stabbing or shooting scenes to the clean
+portrait with eight fixed prompt variations per scenario.
 
 This is a curated comparison maintained by Segmind. Its selected cases do not
 represent either provider's overall production traffic. Lighting accuracy and
@@ -97,7 +99,7 @@ python benchmark.py run --model nano-banana-2 --env-file .env --case C002N --rep
 
 Check the saved outcome before proceeding. A policy block is a measured content
 outcome; an authentication or invalid-request error needs resolving first.
-Then run all 15 cases, or choose an explicit subset:
+Then run all 32 cases, or choose an explicit subset:
 
 ```bash
 python benchmark.py run --model nano-banana-2 --env-file .env --repeats 3
@@ -198,8 +200,9 @@ collecting new comparison results. The freeze must cover every reference, even
 for a selected-case smoke test. Earlier definitions remain in Git history;
 historical run snapshots and results keep their original identities and hashes.
 
-All 15 references are included and ready. Their [asset manifest](datasets/violence/assets.json)
-records exact credits, CC0 or U.S.-only government-work claims, transformations,
+All 16 references are included and ready. Their [asset manifest](datasets/violence/assets.json)
+records exact credits, CC0 or U.S.-only government-work claims for third-party
+photos, synthetic-image provenance for the clean portrait, transformations,
 SHA-256 values and immutable public URLs. Other jurisdictions, likeness, privacy,
 publicity and trademark rights are not claimed cleared. Military imagery carries
 its nonendorsement notice. Third-party reference images are not covered by the

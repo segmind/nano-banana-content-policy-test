@@ -6,9 +6,9 @@ This is a small, deliberately selected collection of violence-related image task
 
 Use the same dataset commit, exact prompt strings, reference image bytes, model family, and supported output settings across providers. Every reference has a SHA-256, provenance, redistribution license, and a fixed public URL. Prepare any size reduction once before freezing the files. Do not resize or retouch separately for one provider.
 
-The single maintained dataset is `datasets/violence`: 15 image edits with 15 staged-photo references. Model selection does not change the dataset. Exact bytes, source credits, rights evidence and preparation steps are recorded in its asset manifest. Reference preparation is separate from tested-provider inference and does not count as a benchmark outcome. Update the dataset version and freeze in this same directory when extending it; older definitions remain in Git history and saved run snapshots.
+The single maintained dataset is `datasets/violence`: 32 image edits using 15 staged-photo references and one clean fictional adult portrait. The clean portrait has eight stabbing variations, eight shooting variations and a neutral control. These are correlated prompt and scene variations on one subject, not independent samples of people or wording-only experiments. Model selection does not change the dataset. Exact bytes, source credits, rights evidence and preparation steps are recorded in its asset manifest. Reference preparation is separate from tested-provider inference and does not count as a benchmark outcome. Update the dataset version and freeze in this same directory when extending it; older definitions remain in Git history and saved run snapshots.
 
-Run each case three times per provider, including failures. This schedules 135 attempts for three providers. These are 15 tasks with repeated observations, not 135 independently sampled tasks. Results from an original Nano Banana profile and a Pro profile are separate comparisons.
+Run each case three times per provider, including failures. This schedules 192 attempts for two providers, or 288 if all three providers are configured. These are 32 tasks with repeated observations, not independently sampled tasks for every attempt. Results from different model profiles are separate comparisons.
 
 Do not edit a prompt after a failure and overwrite its result. Give a revised case a new version or ID and retain the old result. Repeated requests are planned trials, not a loop that keeps trying until an image appears.
 
@@ -22,7 +22,7 @@ Named endpoints identify the requested model family, but third-party aliases do 
 
 No common seed is imposed because reproducibility semantics can differ across providers. A client-side attempt also may include undisclosed server-side retries. Preserve provider retry metadata when returned and do not claim to measure one raw model invocation.
 
-The [violence dataset](../datasets/violence/README.md) uses already injured or violent staged references. Its runner-enforced freeze covers case and provenance manifests and every reference file. The current cases were selected from exploratory edit-completion outcomes; disclose this selection when reporting policy results. Do not combine measurements from different input hashes or model families.
+The [violence dataset](../datasets/violence/README.md) compares editing already injured staged references with adding stabbing or shooting scenes to an uninjured fictional adult. Its runner-enforced freeze covers case and provenance manifests and every reference file. The original 15 cases were selected from exploratory edit-completion outcomes; the 17 clean-reference cases were fixed before collecting their provider outcomes. Disclose both selection bases when reporting policy results. Do not combine measurements from different input hashes or model families.
 
 ## Measure refusals separately from availability
 

@@ -435,7 +435,7 @@ def write_report(report: dict, output: Path, *, dataset_dir: Path | None = None)
                 raise b.BenchmarkError('Reference preview bytes do not match the saved run')
             extension = b.image_type(data).split('/')[1]
             relative = f'{output.stem}.assets/{sha}.{extension}'
-            source = asset.get('source_page', '')
+            source = asset.get('source_page') or asset.get('source_url', '')
             ref = {'path': relative, 'sha256': sha, 'title': asset.get('title', reference_id),
                    'description': asset.get('visual_description', ''), 'creator': asset.get('creator', 'Unknown creator'),
                    'license': asset.get('license', 'See source rights'), 'jurisdiction': asset.get('jurisdiction', ''),
@@ -444,12 +444,18 @@ def write_report(report: dict, output: Path, *, dataset_dir: Path | None = None)
                 ref['source_page'] = source
             report['suite_references'][reference_id] = ref
             copies.append((relative, data))
-        bundled_manifest = b.read_json(b.ROOT/'datasets/violence/assets.json')
-        if manifest == bundled_manifest:
-            report['suite_description'] = 'The references show theatrical blood, wound makeup, simulated casualties and training props, not documented real injuries.'
+        used_assets = [assets[reference_id] for reference_id in reference_ids]
+        if used_assets and all(isinstance(asset.get('contains_existing_violence'), bool) for asset in used_assets):
+            violent = sum(asset['contains_existing_violence'] for asset in used_assets)
+            clean = len(used_assets)-violent
+            report['suite_description'] = f'Input references: {violent} with existing violence or injuries; {clean} without.'
+            if {asset.get('source_type') for asset in used_assets} <= {'staged_photograph', 'synthetic'}:
+                report['suite_description'] += ' Inputs are staged or synthetic scenes, not documentation of real injuries.'
             operations = {case.get('operation') for case in report.get('suite_cases', [])}
-            if operations and operations <= {'neutral_relight', 'explicit_preservation'}:
-                report['suite_description'] += ' The prompts ask for warm side lighting; preservation cases also explicitly ask to keep the existing effects. They do not ask to add injuries.'
+            if 'violence_addition' in operations:
+                report['suite_description'] += ' Some prompts ask to add fictional stabbing or shooting scenes to an uninjured adult portrait.'
+            if operations & {'neutral_relight', 'explicit_preservation'}:
+                report['suite_description'] += ' Relighting cases ask for warm side lighting; preservation cases also explicitly ask to keep the existing effects.'
     output.parent.mkdir(parents=True, exist_ok=True)
     for relative, data in copies:
         destination = b.asset_path(output.parent, relative)

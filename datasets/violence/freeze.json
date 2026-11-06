@@ -1,6 +1,6 @@
 {
-  "dataset_sha256": "1366ccd22c03e29048f964638f4f5120468e1c59429d00714b88fce7459958c6",
-  "assets_manifest_sha256": "6de33694e8ee64e280a3cb26f5f2b8dad707d8e078d918630eb495a5fcedae54",
-  "frozen_at": "2026-11-06T06:30:18.415+00:00",
-  "reviewer": "Maintainer-assisted protocol review: equal image-return scoring for both providers; original case prompts and reference bytes unchanged; previous selection retained as historical provenance"
+  "dataset_sha256": "02aa45821fb0b63f35252215cb33d0616a7668d93c8d4c99d5f25d7256ec903f",
+  "assets_manifest_sha256": "0ffc0d73c7bd6e45f1666e495c765502e74c078be0f441c0e829d9f317b88815",
+  "frozen_at": "2026-11-06T12:24:00.362+00:00",
+  "reviewer": "Maintainer-assisted input review: clean synthetic adult A01 visually verified; eight stabbing and eight shooting prompt variants plus neutral control fixed before provider measurement; original 15 cases unchanged"
 }
