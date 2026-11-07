@@ -145,11 +145,30 @@ def load_dataset(dataset_dir: Path) -> tuple[dict, dict]:
             raise BenchmarkError(f"{case['id']}: unsupported mode")
         if (case["mode"] == "image_edit") != bool(refs):
             raise BenchmarkError(f"{case['id']}: image_edit needs references; text_to_image must have none")
+        validate_reference_roles(case)
+        if "content_checks" in case:
+            checks = case["content_checks"]
+            if not isinstance(checks, list) or not checks or any(not isinstance(check, str) or not check.strip() for check in checks):
+                raise BenchmarkError(f"{case['id']}: content_checks must list essential content")
     if cases.get("review_schema") in INDEPENDENT_REVIEW_SCHEMAS:
         validate_reference_design(cases, assets)
     elif cases.get("review_schema") is not None:
         raise BenchmarkError("Unsupported review_schema")
     return cases, assets
+
+
+def validate_reference_roles(case: dict) -> None:
+    """Check role labels against the supplied image order."""
+    roles = case.get("reference_roles")
+    if roles is None and "content_checks" not in case:
+        return  # Historical case snapshots did not record roles.
+    refs = case["reference_asset_ids"]
+    if not isinstance(roles, list) or len(roles) != len(refs) or any(role not in ("subject", "actor", "target") for role in roles):
+        raise BenchmarkError(f"{case['id']}: reference_roles must label each image in order")
+    if len(roles) == 1 and roles != ["subject"]:
+        raise BenchmarkError(f"{case['id']}: a single reference must be labeled subject")
+    if len(roles) > 1 and (roles.count("actor") != 1 or roles.count("target") != 1):
+        raise BenchmarkError(f"{case['id']}: an interaction needs one actor and one target")
 
 
 def validate_reference_design(dataset: dict, assets: dict) -> None:
@@ -173,6 +192,10 @@ def validate_reference_design(dataset: dict, assets: dict) -> None:
             raise BenchmarkError("Independent-axis design requires explicit nonnegative counts")
         if tuple(design[field] for field in fields) != counts:
             raise BenchmarkError("Declared independent-axis design does not match the cases and references")
+        extra_counts = {"text_to_image_cases": len(cases)-len(edits),
+                        "multi_reference_cases": sum(len(case["reference_asset_ids"]) > 1 for case in edits)}
+        if any(field in design and (type(design[field]) is not int or design[field] != count) for field, count in extra_counts.items()):
+            raise BenchmarkError("Declared text-only or multi-reference count does not match the cases")
     used = {ref for case in edits for ref in case["reference_asset_ids"]}
     if used != set(references):
         raise BenchmarkError("Every fixture must be used")
@@ -780,6 +803,10 @@ def run_attempt(client: Any, provider: str, profile: dict, case: dict, assets: d
                 auth: dict, repeat: int, run_id: str, output_dir: Path, account_mode: str,
                 timeout: float, secrets: list[str]) -> dict:
     url, headers, payload, model = build_request(provider, profile, case, assets, auth)
+    references = [{"id": ref, "sha256": assets[ref]["sha256"]} for ref in case["reference_asset_ids"]]
+    if "reference_roles" in case:
+        for reference, role in zip(references, case["reference_roles"], strict=True):
+            reference["role"] = role
     record = {
         "run_id": run_id, "case_id": case["id"], "repeat": repeat,
         "provider": provider, "profile_id": profile["id"], "model_family": profile["family"],
@@ -787,7 +814,7 @@ def run_attempt(client: Any, provider: str, profile: dict, case: dict, assets: d
         "region": profile["providers"][provider].get("location"),
         "started_at": utc_now(), "request_id": None, "http_status": None,
         "prompt_sha256": digest(case["prompt"].encode("utf-8")),
-        "reference_assets": [{"id": ref, "sha256": assets[ref]["sha256"]} for ref in case["reference_asset_ids"]],
+        "reference_assets": references,
         "request_settings": redact(payload, secrets), "client_inference_retries": 0,
         "outputs": [], "image_count": 0, "human_review": None,
     }
@@ -848,10 +875,14 @@ def make_plan(dataset: dict, assets: dict, cases: list[dict], profile: dict,
             verify_freeze(dataset_dir, dataset, assets)
         except BenchmarkError as exc:
             ready, error = False, str(exc)
+    dataset_cases = dataset.get("cases", cases)
+    full_suite = {case["id"] for case in cases} == {case["id"] for case in dataset_cases}
     return {
         "dataset_id": dataset["dataset_id"], "dataset_version": dataset["version"],
         "profile_id": profile["id"], "model_family": profile["family"],
         "case_ids": [c["id"] for c in cases], "cases": len(cases),
+        "case_scope": "full_dataset" if full_suite else "subset",
+        "dataset_case_count": len(dataset_cases),
         "image_edit_cases": sum(c["mode"] == "image_edit" for c in cases),
         "text_to_image_cases": sum(c["mode"] == "text_to_image" for c in cases),
         "unique_reference_assets": len({r for c in cases for r in c["reference_asset_ids"]}),

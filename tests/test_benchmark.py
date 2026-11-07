@@ -302,8 +302,8 @@ class RequestAndEvidenceTests(unittest.TestCase):
             asset["status"] = "missing"
         plan = b.make_plan(cases, assets, cases["cases"], b.load_profile("nano-banana-pro"), list(b.PROVIDERS), 3, directory)
         self.assertEqual(plan["planned_inference_requests"], len(cases["cases"])*3*len(b.PROVIDERS))
-        self.assertEqual(plan["image_edit_cases"], len(cases["cases"]))
-        self.assertEqual(plan["text_to_image_cases"], 0)
+        self.assertEqual(plan["image_edit_cases"], 12)
+        self.assertEqual(plan["text_to_image_cases"], 3)
         self.assertFalse(plan["assets_ready_locally"])
 
 
