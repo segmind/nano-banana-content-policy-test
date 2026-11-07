@@ -38,17 +38,23 @@ class ModelCliTests(unittest.TestCase):
         return code, stdout.getvalue(), stderr.getvalue()
 
     def test_model_and_profile_flags_produce_identical_plans_for_each_model(self):
+        dataset, _ = b.load_dataset(b.ROOT/'datasets/violence')
         for model in MODELS:
             with self.subTest(model=model):
                 plans = []
                 for flag in ('--model', '--profile'):
-                    code, stdout, stderr = self.invoke(['plan', flag, model])
+                    with patch.object(b, 'make_plan', wraps=b.make_plan) as plan_inputs:
+                        code, stdout, stderr = self.invoke(['plan', flag, model])
+                    self.assertEqual(plan_inputs.call_args.args[2], dataset['cases'])
                     self.assertEqual(code, 0, stderr)
                     plans.append(json.loads(stdout))
                 self.assertEqual(plans[0], plans[1])
                 self.assertEqual(plans[0]['profile_id'], model)
                 self.assertEqual(plans[0]['model_family'], MODELS[model][0])
                 self.assertEqual(plans[0]['dataset_id'], 'violence')
+                self.assertEqual(plans[0]['case_scope'], 'full_dataset')
+                self.assertEqual(plans[0]['case_ids'], [case['id'] for case in dataset['cases']])
+                self.assertEqual(plans[0]['repeats'], 3)
                 self.assertEqual(plans[0]['planned_inference_requests'], plans[0]['cases']*3*len(b.PROVIDERS))
 
     def test_model_argument_is_required_and_conflicting_flags_are_rejected(self):
@@ -86,6 +92,33 @@ class ModelCliTests(unittest.TestCase):
 
 
 class CanonicalRunTests(unittest.TestCase):
+    def test_default_run_schedules_every_case_three_times_for_each_active_provider(self):
+        directory = b.ROOT/'datasets/violence'
+        dataset, assets = b.load_dataset(directory)
+        case_ids = [case['id'] for case in dataset['cases']]
+        prepared = b.prepare_assets(directory, assets, dataset['cases'], need_public_urls=True)
+        public_bytes = {asset['public_url']: asset['data'] for asset in prepared.values()}
+        client = FakeClient()
+        auth = {provider: {'secret': 'fixture-key'} for provider in ('fal', 'segmind')}
+        requests = []
+
+        def attempt(client, provider, profile, case, assets, auth, repeat, *args):
+            requests.append((provider, case['id'], repeat))
+            return {'provider': provider, 'case_id': case['id'], 'repeat': repeat, 'outcome': 'policy_refusal', 'outputs': []}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)/'run'
+            with patch.object(b, 'credentials', return_value=(auth, {'vertex': 'No fixture credentials'})), patch.object(b, 'HTTPClient', return_value=client), patch.object(client, 'download', side_effect=public_bytes.__getitem__), patch.object(b, 'run_attempt', side_effect=attempt), contextlib.redirect_stdout(io.StringIO()):
+                code = b.main(['run', '--model', 'nano-banana-pro', '--output', str(output)])
+            self.assertEqual(code, 0)
+            manifest = b.read_json(output/'run.json')
+            self.assertEqual(manifest['case_scope'], 'full_dataset')
+            self.assertEqual(manifest['case_ids'], case_ids)
+            self.assertEqual(manifest['planned_inference_requests'], 90)
+            self.assertEqual(len(requests), 90)
+            self.assertEqual(set(requests), {(provider, case, repeat) for provider in auth for case in case_ids for repeat in range(1, 4)})
+            self.assertEqual(client.calls, [])
+
     def test_default_dataset_reaches_the_selected_model_with_exact_reference_bytes(self):
         client = FakeClient([
             response({'request_id': 'req-123', 'status_url': 'https://queue.fal.run/status', 'response_url': 'https://queue.fal.run/response'}),
@@ -95,12 +128,13 @@ class CanonicalRunTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp)/'run'
             with patch.dict(os.environ, {'FAL_KEY': 'local-test'}, clear=True), patch.object(b, 'HTTPClient', return_value=client), contextlib.redirect_stdout(io.StringIO()):
-                code = b.main(['run', '--model', 'nano-banana-2', '--case', 'C002N', '--provider', 'fal', '--repeats', '1', '--output', str(output)])
+                code = b.main(['run', '--model', 'nano-banana-2', '--case', 'V001', '--provider', 'fal', '--repeats', '1', '--output', str(output)])
             self.assertEqual(code, 0)
             manifest = b.read_json(output/'run.json')
             self.assertEqual(manifest['dataset_id'], 'violence')
             self.assertEqual(manifest['profile_id'], 'nano-banana-2')
-            self.assertEqual(manifest['case_ids'], ['C002N'])
+            self.assertEqual(manifest['case_ids'], ['V001'])
+            self.assertEqual(manifest['case_scope'], 'subset')
             submitted = client.calls[0]
             self.assertEqual(submitted[1], 'https://queue.fal.run/fal-ai/nano-banana-2/edit')
             data = base64.b64decode(submitted[3]['image_urls'][0].split(',', 1)[1])

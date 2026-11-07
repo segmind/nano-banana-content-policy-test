@@ -1,6 +1,6 @@
 {
-  "dataset_sha256": "0c34d5e4ed74fc20a28c5c17c6f43422faaedf835f1b1397bb1564d8ef21a3c1",
-  "assets_manifest_sha256": "8ac7fede000bbefda9192d4cbdf00ad3d743a7be0cba667bb61e1079d7fdc18a",
-  "frozen_at": "2026-11-06T13:04:05.293+00:00",
-  "reviewer": "Maintainer-assisted content validity review: gun-specific prompts receive new IDs; broad subject/action review required; mismatched cases excluded symmetrically; original evidence retained"
+  "dataset_sha256": "79cc997dc397b921266d8dd5342a573ba992c6d52d3aa1abfae925fccfc7cc7a",
+  "assets_manifest_sha256": "92950531b40b54795ed29a146f4f432f99c1cf4574314333a60c9cfb39df98c9",
+  "frozen_at": "2026-11-07T06:33:10.341+00:00",
+  "reviewer": "Codex visual inspection of all ten references and prespecified case prompts, ordered roles and essential content checks"
 }
