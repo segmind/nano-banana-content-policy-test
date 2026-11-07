@@ -246,7 +246,13 @@ def validate_case_features(dataset: dict, assets: dict) -> None:
             if asset.get("kind") != expected_kind:
                 raise BenchmarkError(f"{case['id']}: {ref} cannot be used as {role}")
             if role in PROP_ROLES:
-                props[ref] = asset.get("identifying_features")
+                cue = asset.get("essential_match_cue")
+                if cue is None:
+                    props[ref] = asset.get("identifying_features")
+                    continue  # Archived suites used the full fixture description.
+                if not isinstance(cue, str) or not cue.strip() or not any(cue in check for check in case["content_checks"]):
+                    raise BenchmarkError(f"{case['id']}: {ref} needs its essential prop cue in the content checks")
+                props[ref] = [cue]
         requirements = case.get("prop_identification", {})
         if requirements != props or any(not isinstance(items, list) or not items or
                                        any(not isinstance(item, str) or not item.strip() for item in items)
