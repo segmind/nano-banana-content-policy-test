@@ -1,6 +1,6 @@
 # Provider contracts and comparison limits
 
-Documentation checked November 6, 2026. Adapter implementation and offline tests do not establish that a paid account or a live endpoint currently works. Run a small smoke test before a complete comparison and record its outcome separately.
+Documentation checked November 7, 2026. Adapter implementation and offline tests do not establish that a paid account or a live endpoint currently works. Run a small smoke test before a complete comparison and record its outcome separately.
 
 ## Model profiles
 
@@ -33,7 +33,7 @@ The mappings select the corresponding advertised families. A third-party provide
 
 Submit once to `POST https://api.segmind.com/v2/{model}` with the `x-api-key` header. Poll the returned status URL and fetch the final response. Preserve the request ID for an unknown or timed-out result. Do not resubmit just because polling timed out.
 
-The model API documents public URLs in `image_urls`. This runner requires a public URL for every Segmind reference and fetches it before inference to verify its SHA-256 matches the local reference. Use a URL pinned to the asset commit. fal and Vertex receive the same local file bytes through their documented inline mechanisms.
+The model API documents public URLs in `image_urls`. This runner requires a public URL for every Segmind reference and fetches it before inference to verify its SHA-256 matches the local reference. The runner derives each URL from the published checkout commit and the repository-relative asset path. fal and Vertex receive the same local file bytes through their documented inline mechanisms.
 
 The adapter accepts current `images[]` results and older `output` media envelopes. A JSON-encoded `output.data.finish_reason` can carry a Gemini safety or recitation result even under HTTP 200. The classifier recognizes exact known enum values, including the `FinishReason.` prefix, rather than matching words in a message. Failed HTTP 422 polls with `status: FAILED` are followed by a result fetch so full native diagnostics are preserved.
 
@@ -62,3 +62,24 @@ Sources: [Pro model](https://docs.cloud.google.com/gemini-enterprise-agent-platf
 ## Live evidence still required
 
 Before using a comparative headline, validate the included references, smoke-test each configured adapter, complete the planned runs, and visually review the returned images. Offline tests and credential skips do not establish a provider performance result.
+
+## Reference count limits used by the runner
+
+The maintained suite uses up to three separately submitted images. Limits
+below apply to the image-only input path. Requests exceeding a configured
+count are recorded as unsupported without submitting inference.
+
+| Profile | Segmind | fal |
+| --- | ---: | ---: |
+| Nano Banana | 3 ([Segmind schema](https://www.segmind.com/models/nano-banana/api)) | 3 benchmark cap ([fal array schema](https://fal.ai/models/fal-ai/nano-banana/edit/api), [Google guidance](https://ai.google.dev/gemini-api/docs/image-generation#limitations)) |
+| Nano Banana Pro | 14 ([Segmind schema](https://www.segmind.com/models/nano-banana-pro/api)) | 14 ([fal model](https://fal.ai/models/fal-ai/nano-banana-pro/edit)) |
+| Nano Banana 2 | 14 ([Segmind schema](https://www.segmind.com/models/nano-banana-2/api)) | 14 ([fal model](https://fal.ai/models/fal-ai/nano-banana-2/edit)) |
+| Nano Banana 2 Lite | 14 ([Segmind schema](https://www.segmind.com/models/nano-banana-2-lite/api)) | 14 upstream image allowance ([fal array schema](https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=google/nano-banana-2-lite/edit), [Google guidance](https://ai.google.dev/gemini-api/docs/image-generation)) |
+| Nano Banana 2.1 | 14 ([Segmind schema](https://www.segmind.com/models/nano-banana-2.1/api)) | 14 ([fal model](https://fal.ai/models/google/nano-banana-2.1/edit)) |
+
+The fal Original and Lite schemas publish an image list without a numeric
+maximum. The runner uses Google's Original recommendation and Lite image
+allowance. Google describes fidelity capabilities separately from the number
+of images the endpoint accepts. The Lite model's object guidance does not
+establish character fidelity. The benchmark measures that through visual
+review. Live compatibility still depends on the endpoint and account.

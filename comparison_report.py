@@ -5,6 +5,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import benchmark as b
+from comparison import PAIR_OUTCOMES
 
 
 STYLES = '''
@@ -79,6 +80,48 @@ a:focus-visible,summary:focus-visible {
   text-decoration:none;
   background:var(--paper);
   font-size:14px
+}
+.paired {
+  margin:26px 0
+}
+.pair-model {
+  margin:16px 0
+}
+.pair-model h3 {
+  margin:0 0 4px
+}
+.pair-counts {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(105px,1fr));
+  gap:6px;
+  padding:0;
+  list-style:none
+}
+.pair-counts li {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding:8px 10px;
+  border:1px solid var(--border);
+  border-radius:5px;
+  font-size:14px;
+  background:#fff
+}
+.pair-counts strong {
+  font-size:20px
+}
+.pair-counts .unresolved,.case-table .unresolved {
+  background:#e9edf0;
+  color:#475a68
+}
+.pair-counts .both_pass {
+  background:#e7f4e9
+}
+.feature-group {
+  margin-top:8px
+}
+.case-table td {
+  overflow-wrap:anywhere
 }
 .definition {
   max-width:740px;
@@ -343,6 +386,86 @@ footer {
 '''
 
 
+DATASET_URL = 'https://github.com/segmind/nano-banana-content-policy-test/tree/main/datasets/violence'
+OUTCOME_LABELS = {'both_pass': 'Both pass', 'segmind_only': 'Segmind only', 'fal_only': 'fal only',
+                  'neither_pass': 'Neither passes', 'unresolved': 'Unresolved'}
+
+
+def render_counts(counts: dict) -> str:
+    return '<ul class="pair-counts">' + ''.join(
+        f'<li class="{outcome}"><span>{OUTCOME_LABELS[outcome]}</span><strong>{counts[outcome]}</strong></li>'
+        for outcome in PAIR_OUTCOMES) + '</ul>'
+
+
+def render_pairs(report: dict) -> str:
+    sections = []
+    for model, counts in report.get('paired_outcome_counts', {}).items():
+        planned = sum(counts.values())
+        pairs = [pair for pair in report['paired_outcomes'] if pair['model_id'] == model]
+        lines = []
+        for pair in pairs:
+            cells = []
+            for provider in ('segmind', 'fal'):
+                detail = pair['providers'][provider]
+                matches, attempts = detail['matching_repetitions'], detail['planned_attempts']
+                suffix = ' · inconsistent success' if detail['inconsistent_success'] else ''
+                if detail['status'] == 'not_run':
+                    suffix = ' · not run'
+                if detail['unsupported_reason']:
+                    suffix = ' · ' + detail['unsupported_reason']
+                cells.append(f'<td>{matches}/{attempts}{html.escape(suffix)}</td>')
+            outcome = pair['outcome']
+            lines.append(f'<tr><th scope="row">{html.escape(pair["case_id"])}</th><td class="{outcome}">{OUTCOME_LABELS[outcome]}</td>{"".join(cells)}</tr>')
+        case_table = f'<table class="case-table"><thead><tr><th>Case</th><th>Outcome</th><th>Segmind matches</th><th>fal matches</th></tr></thead><tbody>{"".join(lines)}</tbody></table>'
+        sections.append(f'''<section class="pair-model"><h3>{html.escape(model)}</h3>
+<p class="muted">{planned} planned · {planned-counts['unresolved']} evaluated pairs · {counts['unresolved']} unresolved</p>
+{render_counts(counts)}<details><summary>See paired cases and successful attempts</summary>{case_table}</details></section>''')
+    if not sections:
+        return ''
+    return f'''<section class="paired"><h2>Paired outcomes</h2><p class="muted">Each provider needs three reviewed or explicitly refused attempts on the same frozen case. Missing or unclear evidence stays unresolved.</p>{''.join(sections)}</section>'''
+
+
+def render_patterns(report: dict) -> str:
+    model_groups = {}
+    for group in report.get('pattern_groups', []):
+        model_groups.setdefault(group['model_id'], []).append(group)
+    sections = []
+    for model, groups in model_groups.items():
+        entries = []
+        for group in groups:
+            name = f'{group["feature"].replace("_", " ")} = {str(group["value"]).replace("_", " ")}'
+            sparse = ' · sparse illustration' if group['sparse'] else ''
+            details = []
+            for provider, label in (('segmind', 'Segmind'), ('fal', 'fal')):
+                counts = group['providers'][provider]
+                details.append(f'<p><strong>{label}</strong> · {counts["successful_attempts"]} matches · {counts["explicit_refusals"]} explicit refusals · {counts["image_mismatches"]} content mismatches · {counts["operational_attempts"]} operational failures · {counts["unresolved_attempts"]} unresolved attempts</p>')
+            cases = ''.join(f'<li>{OUTCOME_LABELS[outcome]} · {html.escape(", ".join(ids))}</li>'
+                            for outcome, ids in group['cases_by_outcome'].items() if ids)
+            fixtures = ', '.join(group['source_fixture_ids']) or 'None'
+            entries.append(f'''<details class="feature-group"><summary>{html.escape(name)} · {group['evaluated']}/{group['planned']} evaluated{sparse}</summary>
+{render_counts(group['outcomes'])}
+<div class="muted">{''.join(details)}<p>{group['family_count']} scenario families · {group['source_fixture_count']} source fixtures ({html.escape(fixtures)})</p></div>
+<ul class="muted">{cases}</ul></details>''')
+        sections.append(f'<details><summary>{html.escape(model)} feature patterns</summary>{"".join(entries)}</details>')
+    return ''.join(sections)
+
+
+def render_matched_comparisons(report: dict) -> str:
+    pairs = report.get('matched_comparisons', [])
+    if not pairs:
+        return ''
+    ids = {case['id'] for case in report['suite_cases']}
+    lines = []
+    for pair in pairs:
+        if set(pair['case_ids']) <= ids:
+            label = pair['changed_factor'].replace('_', ' ')
+            lines.append(f'<li>{html.escape(label)} · {html.escape(" / ".join(pair["case_ids"]))}</li>')
+    for control in report.get('unmatched_controls', []):
+        if control['case_id'] in ids:
+            lines.append(f'<li>{html.escape(control["case_id"])} · {html.escape(control["reason"])}</li>')
+    return f'<details><summary>Matched comparisons and controls</summary><ul>{"".join(lines)}</ul></details>' if lines else ''
+
+
 def render_report(report: dict, data_filename: str) -> str:
     escape = lambda value: html.escape(str(value), quote=True)
     provider_names = {'fal': 'fal', 'segmind': 'Segmind', 'vertex': 'Google (Vertex AI)'}
@@ -373,7 +496,17 @@ def render_report(report: dict, data_filename: str) -> str:
         rights = f'<details><summary>Source and rights</summary>{"".join(credits)}</details>' if credits else ''
         checks = ''.join(f'<li>{escape(check)}</li>' for check in case.get('content_checks', []))
         checks_details = f'<details><summary>Essential content checks</summary><ul>{checks}</ul></details>' if checks else ''
-        cards.append(f'<figure class="reference-card"><figcaption>{escape(case["id"])} · {escape(title)}</figcaption><div class="reference-inputs">{"".join(images)}</div><p><strong>Exact prompt</strong></p><p class="prompt">{escape(case["prompt"])}</p>{checks_details}{rights}</figure>')
+        ordered = case.get('ordered_references', [])
+        audit_items = []
+        for index, item in enumerate(ordered):
+            role = escape(item.get('role') or f'Image {index+1}')
+            reference_id = escape(item.get('id', ''))
+            sha = escape(item.get('sha256') or 'unknown')
+            url = item.get('url')
+            link = f'<a href="{escape(url)}" rel="noopener noreferrer">Published input URL</a>' if isinstance(url, str) and url.startswith('https://') else escape(url or 'No published input URL recorded')
+            audit_items.append(f'<p class="credit"><strong>{role} · {reference_id}</strong><br>SHA-256: {sha}<br>{link}</p>')
+        input_audit = f'<details><summary>Input checksums and URLs</summary>{"".join(audit_items)}</details>' if audit_items else ''
+        cards.append(f'<figure class="reference-card"><figcaption>{escape(case["id"])} · {escape(title)}</figcaption><div class="reference-inputs">{"".join(images)}</div>{input_audit}<p><strong>Exact prompt</strong></p><p class="prompt">{escape(case["prompt"])}</p>{checks_details}{rights}</figure>')
     # Examples follow saved case order, independently of either provider's result.
     example_indices = sorted({0, len(cards)//2, len(cards)-1}) if cards else []
     examples = ''.join(cards[index] for index in example_indices)
@@ -402,7 +535,7 @@ def render_report(report: dict, data_filename: str) -> str:
                 state += '; content review pending'
             reasons = ''.join(f'<p>{escape(review["reason"])}</p>' for review in case.get('content_mismatches', []))
             notes = f'<details><summary>Review notes</summary>{reasons}</details>' if reasons else ''
-            cases.append(f'<tr><th scope="row" title="{escape(case["title"])}">{escape(case["id"])}<span class="case-title">{escape(case["title"])}</span></th><td>{case["images_returned"]}/{case["planned_attempts"]}</td><td>{state}{notes}</td></tr>')
+            cases.append(f'<tr><th scope="row" title="{escape(case["title"])}">{escape(case["id"])}<span class="case-title">{escape(case["title"])}</span></th><td>{case["images_returned"]}/{case["planned_attempts"]} · content match {escape(case.get("match_ratio", "0/0"))}</td><td>{state}{notes}</td></tr>')
         counts = f'{row["recorded_attempts"]}/{row["planned_attempts"]} requests recorded · {row["policy_blocks"]} policy refusals · {row["content_mismatch_cases"]} mismatched cases · {row["other_outcomes"]} technical or unresolved outcomes'
         case_tables.append(f'''<div><p class="muted">{counts}</p><table class="case-table"><caption>{model} · {provider}</caption><thead><tr><th scope="col">Case</th><th scope="col">Image returns / requests</th><th scope="col">Result</th></tr></thead><tbody>{''.join(cases)}</tbody></table></div>''')
     scope = {'full_dataset': 'Full dataset', 'subset': f'Subset: {report["total_cases"]} of {report.get("dataset_case_count")} cases'}.get(report.get('case_scope'), 'Saved case set (scope not recorded)')
@@ -415,7 +548,7 @@ def render_report(report: dict, data_filename: str) -> str:
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Nano Banana content-policy comparison</title><style>{STYLES}</style></head>
 <body><main>
 <header><div><div class="eyebrow">Open comparison · Violence dataset</div><h1>Nano Banana comparison</h1><p class="muted">{report['total_cases']} planned cases · {report['repeats']} planned {"repetition" if report['repeats'] == 1 else "repetitions"} per case</p></div><a class="data-link" href="{escape(quote(data_filename))}">View data (JSON)</a></header>
-<p class="muted"><strong>Test suite:</strong> {escape(report['dataset_id'])} · version {escape(report['dataset_version'])} · {escape(scope)}</p>
+<p class="muted"><strong>Test suite:</strong> {escape(report['dataset_id'])} · version {escape(report['dataset_version'])} · {escape(scope)} · <a href="{DATASET_URL}">Dataset and reproduction guide</a></p>
 <p class="suite-intro">{coverage} Every provider receives the same prompt and ordered reference images for a case. {escape(report.get('suite_description', 'See the exact inputs below.'))}</p>
 <p class="definition"><strong>Passed means every repetition returns images that match the essential content.</strong> Minor visual differences are acceptable. A reviewed mismatch fails that provider’s case. Every planned case stays in the denominator.</p>
 {not_tested}
@@ -423,6 +556,9 @@ def render_report(report: dict, data_filename: str) -> str:
 <div class="legend"><span>Fewer cases passed</span><div class="legend-scale" aria-hidden="true"><div class="gradient"></div><div class="legend-labels"><span>0%</span><span>50%</span><span>100%</span></div></div><span>More cases passed</span><span>Gray = incomplete or not run</span></div>
 <p class="scope">{escape(report['dataset_scope'])}</p>
 <p class="inline-note">Higher scores mean more completed tasks on this fixed case set. They do not establish better image quality or that a provider's safety decisions were correct.</p>
+{render_pairs(report)}
+{render_patterns(report)}
+{render_matched_comparisons(report)}
 {gallery}
 <details><summary>See results for each case</summary><div class="detail-grid">{''.join(case_tables)}</div></details>
 <details><summary>How this comparison is counted</summary><p>{escape(report['pass_definition'])}</p><p>Explicit policy refusals prevent a case from passing. Unreviewed or uncertain content leaves active comparison rows unscored. Technical errors and unexplained responses remain incomplete. A mismatch retains the native image return, and its review notes and output hashes are saved in the JSON. A skipped provider has no score. Repetitions of the same case are not independent samples.</p><p>Provider names identify the advertised model family; undisclosed backend revisions and account configuration can differ.</p></details>

@@ -29,6 +29,86 @@ class ReferenceRevisionTests(unittest.TestCase):
             with self.subTest(change=change), self.assertRaises(b.BenchmarkError):
                 b.validate_reference_design(changed_dataset, changed_assets)
 
+    def test_people_and_props_are_labeled_in_input_order(self):
+        for roles in ([], ['subject'], ['subject', 'weapon'], ['subject', 'equipment'],
+                      ['actor', 'weapon', 'equipment'], ['target', 'actor', 'weapon'],
+                      ['actor', 'target', 'equipment']):
+            with self.subTest(roles=roles):
+                b.validate_reference_roles({'id': 'valid', 'reference_asset_ids': list(range(len(roles))),
+                                            'reference_roles': roles})
+        for roles in (['weapon'], ['actor'], ['target', 'weapon'], ['subject', 'target'],
+                      ['actor', 'actor', 'equipment'], ['subject', 'weapon', 'weapon'], ['actor', 'unlabeled']):
+            with self.subTest(roles=roles), self.assertRaises(b.BenchmarkError):
+                b.validate_reference_roles({'id': 'invalid', 'reference_asset_ids': list(range(len(roles))),
+                                            'reference_roles': roles})
+
+    def test_changed_matched_pair_and_wrong_fixture_kind_are_rejected(self):
+        dataset, assets = b.load_dataset(b.ROOT/'datasets/violence')
+        reverse = next(case for case in dataset['cases'] if case['id'] == 'V027')
+        reverse['reference_asset_ids'][:2] = reversed(reverse['reference_asset_ids'][:2])
+        with self.assertRaisesRegex(b.BenchmarkError, 'reference order'):
+            b.validate_case_features(dataset, assets)
+        reverse['reference_roles'][-1] = 'equipment'
+        reverse['features'].update(weapon_references=0, equipment_references=1)
+        with self.assertRaisesRegex(b.BenchmarkError, 'cannot be used as equipment'):
+            b.validate_case_features(dataset, assets)
+
+    def test_published_ref_uses_checkout_head_or_explicit_archive_commit(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            commit = 'c'*40
+            with patch.object(b, 'ROOT', root):
+                with self.assertRaisesRegex(b.BenchmarkError, 'non-Git checkout'):
+                    b.resolve_published_ref(None)
+                self.assertEqual(b.resolve_published_ref(commit), commit)
+                with self.assertRaisesRegex(b.BenchmarkError, '40-character'):
+                    b.resolve_published_ref('main')
+                (root/'.git').write_text('gitdir: fixture')
+                with patch.object(b.subprocess, 'check_output', return_value=commit+'\n') as git:
+                    self.assertEqual(b.resolve_published_ref(None), commit)
+                    git.assert_called_once_with(['git', '-C', str(root), 'rev-parse', '--verify', 'HEAD^{commit}'], text=True)
+                    with self.assertRaisesRegex(b.BenchmarkError, 'checkout HEAD'):
+                        b.resolve_published_ref('d'*40)
+
+    def test_published_preflight_rejects_missing_and_mismatched_bytes_before_fal_inference(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            dataset, assets = self.make_frozen(root)
+            dataset['cases'][0]['prompt'] = 'Relight.'
+            asset = assets['assets'][0]
+            asset.pop('public_url')
+            asset.update(repository_path='datasets/test/assets/R01.png', prepared_dimensions=[1, 1],
+                         visual_review={'reviewer': 'Fixture', 'notes': 'Checked'})
+            assets['publication_repository'] = 'example/benchmark'
+            (root/'freeze.json').unlink()
+            b.freeze_dataset(root, dataset, assets, 'Fixture reviewer')
+            args = argparse.Namespace(dataset=root, account_mode=None, timeout=10, repeats=1, output=root/'run')
+            client = FakeClient()
+            for failure in (PNG+b'mismatch', b.CallError('output_fetch_error', '404')):
+                download = {'side_effect': failure} if isinstance(failure, Exception) else {'return_value': failure}
+                with patch.dict('os.environ', {'FAL_KEY': 'test'}, clear=True), patch.object(
+                        b, 'resolve_published_ref', return_value='a'*40), patch.object(client, 'download', **download) as fetch:
+                    with self.assertRaisesRegex(b.BenchmarkError, 'Public image preflight failed'):
+                        b.run_benchmark(args, dataset, assets, dataset['cases'], b.load_profile('nano-banana'), ['fal'], client)
+                    fetch.assert_called_once_with('https://raw.githubusercontent.com/example/benchmark/'+'a'*40+'/datasets/test/assets/R01.png')
+            self.assertEqual(client.calls, [])
+            self.assertFalse(args.output.exists())
+
+    def test_unsupported_reference_count_leaves_evidence_without_inference(self):
+        case = {'id': 'fixture', 'reference_asset_ids': ['R1','R2','R3','R4'],
+                'reference_roles': ['actor','target','weapon','equipment'], 'prompt': 'Compose.'}
+        profile = b.load_profile('nano-banana')
+        assets = {ref: {'sha256': 'a'*64} for ref in case['reference_asset_ids']}
+        client = FakeClient()
+        for provider in b.PAIRED_PROVIDERS:
+            with self.subTest(provider=provider):
+                result = b.run_attempt(client, provider, profile, case, assets, {'secret': 'fixture'}, 1,
+                                       'run', Path('.'), 'unknown', 5, [])
+                self.assertEqual(result['outcome'], 'unsupported_input')
+                self.assertEqual([ref['id'] for ref in result['reference_assets']], case['reference_asset_ids'])
+                self.assertIn('input limit of 3', result['error'])
+        self.assertEqual(client.calls, [])
+
     def make_frozen(self, root):
         assets = sample_assets(root)
         dataset = {'dataset_id': 'fixture', 'version': '1', 'freeze_required': True,

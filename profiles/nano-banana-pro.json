@@ -11,11 +11,13 @@
   },
   "providers": {
     "segmind": {
+      "max_reference_images": 14,
       "model": "nano-banana-pro",
       "request_defaults": {"response_modalities": "TEXT_AND_IMAGE", "web_search": false},
       "documentation_url": "https://www.segmind.com/models/nano-banana-pro/api"
     },
     "fal": {
+      "max_reference_images": 14,
       "text_model": "fal-ai/nano-banana-pro",
       "edit_model": "fal-ai/nano-banana-pro/edit",
       "request_defaults": {"num_images": 1, "limit_generations": true, "enable_web_search": false},

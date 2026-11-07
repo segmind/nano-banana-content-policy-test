@@ -36,6 +36,13 @@ from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parent
 PROVIDERS = ("segmind", "fal", "vertex")
+PAIRED_PROVIDERS = ("segmind", "fal")
+SCORING_PROTOCOL = "subject_action_match_fixed_denominator_v2"
+REF_PATTERN = re.compile(r"[0-9a-f]{40}")
+PERSON_ROLES = ("subject", "actor", "target")
+PROP_ROLES = ("weapon", "equipment")
+MISMATCH_REASONS = ("wrong_person", "wrong_direction", "wrong_action", "wrong_prop",
+                    "missing_required_injury", "unexpected_injury", "wrong_style", "other")
 MAX_BYTES = 20 * 1024 * 1024
 SAFETY_REASONS = {
     "SAFETY", "BLOCKLIST", "PROHIBITED_CONTENT", "IMAGE_SAFETY",
@@ -127,6 +134,12 @@ def load_dataset(dataset_dir: Path) -> tuple[dict, dict]:
         asset_path(dataset_dir, asset.get("path"))
         if asset.get("sha256") is not None and not SHA_PATTERN.fullmatch(str(asset["sha256"])):
             raise BenchmarkError(f"{asset['id']}: sha256 must be a lowercase 64-character digest or null")
+    publication_repo = assets.get("publication_repository")
+    if publication_repo is not None:
+        if not isinstance(publication_repo, str) or not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", publication_repo):
+            raise BenchmarkError("publication_repository must name a GitHub owner/repository")
+        for asset in assets["assets"]:
+            publication_path(asset)
     case_ids: set[str] = set()
     for case in cases["cases"]:
         if not isinstance(case, dict) or not isinstance(case.get("id"), str) or not ID_PATTERN.fullmatch(case["id"]):
@@ -154,6 +167,8 @@ def load_dataset(dataset_dir: Path) -> tuple[dict, dict]:
         validate_reference_design(cases, assets)
     elif cases.get("review_schema") is not None:
         raise BenchmarkError("Unsupported review_schema")
+    if "matched_comparisons" in cases or any("features" in case for case in cases["cases"]):
+        validate_case_features(cases, assets)
     return cases, assets
 
 
@@ -163,12 +178,109 @@ def validate_reference_roles(case: dict) -> None:
     if roles is None and "content_checks" not in case:
         return  # Historical case snapshots did not record roles.
     refs = case["reference_asset_ids"]
-    if not isinstance(roles, list) or len(roles) != len(refs) or any(role not in ("subject", "actor", "target") for role in roles):
+    valid_roles = (*PERSON_ROLES, *PROP_ROLES)
+    if not isinstance(roles, list) or len(roles) != len(refs) or any(role not in valid_roles for role in roles):
         raise BenchmarkError(f"{case['id']}: reference_roles must label each image in order")
-    if len(roles) == 1 and roles != ["subject"]:
-        raise BenchmarkError(f"{case['id']}: a single reference must be labeled subject")
-    if len(roles) > 1 and (roles.count("actor") != 1 or roles.count("target") != 1):
-        raise BenchmarkError(f"{case['id']}: an interaction needs one actor and one target")
+    if not roles:
+        return
+    people = {role for role in roles if role in PERSON_ROLES}
+    if len(roles) != len(set(roles)) or people not in ({"subject"}, {"actor", "target"}, {"actor"}):
+        raise BenchmarkError(f"{case['id']}: reference roles need one subject, a solo actor with a prop, or one actor and one target")
+    if people == {"actor"} and not any(role in PROP_ROLES for role in roles):
+        raise BenchmarkError(f"{case['id']}: label a single person without props as subject")
+
+
+FEATURE_VALUES = {
+    "input_type": ("existing_violence_reference", "clean_reference", "text_only"),
+    "transformation": ("preserve", "introduce", "remove", "nonviolent_control"),
+    "mechanism": ("firearm", "knife", "blunt_force", "glass", "burn", "explosion", "sword", "rescue", "aftermath"),
+    "reference_blood": ("none", "visible", "not_applicable"),
+    "reference_injury": ("none", "visible", "not_applicable"),
+    "requested_blood": ("visible", "none", "unspecified"),
+    "requested_injury": ("visible", "none", "unspecified"),
+    "context": ("horror", "action", "military", "rescue", "fantasy"),
+    "rendering_style": ("photorealistic", "graphic_novel", "unspecified"),
+    "framing": ("close", "portrait", "medium", "wide", "source", "unspecified"),
+}
+MATCHED_FACTORS = {
+    "preserve_vs_remove": {"transformation", "requested_blood", "requested_injury"},
+    "supplied_weapon": {"weapon_references", "total_references"},
+    "actor_target_reversal": set(),
+    "visible_injury": {"requested_blood", "requested_injury"},
+    "rendering_style": {"rendering_style"},
+}
+
+
+def validate_case_features(dataset: dict, assets: dict) -> None:
+    registry = {asset["id"]: asset for asset in assets["assets"]}
+    indexed = {case["id"]: case for case in dataset["cases"]}
+    for case in indexed.values():
+        refs = case["reference_asset_ids"]
+        roles = case.get("reference_roles", [])
+        features = case.get("features")
+        counts = {"character_references": sum(role in PERSON_ROLES for role in roles),
+                  "weapon_references": roles.count("weapon"), "equipment_references": roles.count("equipment"),
+                  "total_references": len(refs)}
+        if not isinstance(features, dict) or set(features) != {*FEATURE_VALUES, *counts, "scenario_family"}:
+            raise BenchmarkError(f"{case['id']}: declare every case feature")
+        if any(features[key] not in values for key, values in FEATURE_VALUES.items()):
+            raise BenchmarkError(f"{case['id']}: unknown case feature value")
+        if any(type(features[key]) is not int or features[key] != count for key, count in counts.items()):
+            raise BenchmarkError(f"{case['id']}: feature counts do not match ordered references")
+        family = features["scenario_family"]
+        if not isinstance(family, str) or not ID_PATTERN.fullmatch(family) or not case.get("content_checks"):
+            raise BenchmarkError(f"{case['id']}: scenario family and essential checks required")
+        expected_type = "text_only"
+        if refs:
+            expected_type = "existing_violence_reference" if any(registry[ref]["contains_existing_violence"] for ref in refs) else "clean_reference"
+        if features["input_type"] != expected_type:
+            raise BenchmarkError(f"{case['id']}: input type does not match the references")
+        for axis in ("blood", "injury"):
+            visibility = "not_applicable" if not refs else "visible" if any(registry[ref].get(f"visible_{axis}") is True for ref in refs) else "none"
+            if features[f"reference_{axis}"] != visibility:
+                raise BenchmarkError(f"{case['id']}: reference {axis} does not match the asset manifest")
+        props = {}
+        for ref, role in zip(refs, roles, strict=True):
+            asset = registry[ref]
+            expected_kind = "person" if role in PERSON_ROLES else role
+            if asset.get("kind") != expected_kind:
+                raise BenchmarkError(f"{case['id']}: {ref} cannot be used as {role}")
+            if role in PROP_ROLES:
+                props[ref] = asset.get("identifying_features")
+        requirements = case.get("prop_identification", {})
+        if requirements != props or any(not isinstance(items, list) or not items or
+                                       any(not isinstance(item, str) or not item.strip() for item in items)
+                                       for items in props.values()):
+            raise BenchmarkError(f"{case['id']}: prop checks must match the declared identifying features")
+
+    pairs = dataset.get("matched_comparisons")
+    if not isinstance(pairs, list) or not pairs:
+        raise BenchmarkError("Declare matched comparisons")
+    seen = set()
+    for pair in pairs:
+        if not isinstance(pair, dict):
+            raise BenchmarkError("Matched comparisons must be objects")
+        pair_id, factor, ids = pair.get("id"), pair.get("changed_factor"), pair.get("case_ids")
+        if (not isinstance(pair_id, str) or not ID_PATTERN.fullmatch(pair_id) or pair_id in seen
+                or factor not in MATCHED_FACTORS or not isinstance(ids, list) or len(ids) != 2
+                or ids[0] == ids[1] or any(not isinstance(case_id, str) or case_id not in indexed for case_id in ids)):
+            raise BenchmarkError("Each matched comparison needs a unique ID, two cases and a supported changed factor")
+        seen.add(pair_id)
+        first, second = (indexed[case_id] for case_id in ids)
+        changed = {key for key, value in first["features"].items() if second["features"][key] != value}
+        first_refs, second_refs = (list(zip(case["reference_asset_ids"], case["reference_roles"])) for case in (first, second))
+        if factor == "supplied_weapon":
+            base, supplied = sorted((first_refs, second_refs), key=len)
+            valid_order = len(supplied) == len(base) + 1 and supplied[-1][1] == "weapon" and supplied[:-1] == base
+        elif factor == "actor_target_reversal":
+            reverse = {"actor": "target", "target": "actor"}
+            valid_order = {"actor", "target"} <= set(first["reference_roles"]) and [
+                (ref, reverse.get(role, role)) for ref, role in first_refs] == second_refs
+        else:
+            valid_order = first_refs == second_refs
+        if (changed - MATCHED_FACTORS[factor] or (factor != "actor_target_reversal" and not changed)
+                or not valid_order):
+            raise BenchmarkError(f"{pair_id}: changed features or reference order do not match the declared factor")
 
 
 def validate_reference_design(dataset: dict, assets: dict) -> None:
@@ -307,6 +419,8 @@ def load_profile(name: str) -> dict:
             model = settings.get(field)
             if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*", model):
                 raise BenchmarkError(f"Profile {provider}.{field} must name an explicit model")
+        if "max_reference_images" in settings and (type(settings["max_reference_images"]) is not int or settings["max_reference_images"] < 0):
+            raise BenchmarkError(f"{provider}.max_reference_images must be a nonnegative integer")
         if not isinstance(settings.get("request_defaults", {}), dict):
             raise BenchmarkError(f"{provider}.request_defaults must be an object")
     return profile
@@ -379,11 +493,39 @@ def public_url(url: Any) -> str:
     return url
 
 
+def publication_path(asset: dict) -> str:
+    path = asset.get("repository_path")
+    if not isinstance(path, str) or not path or any(
+        not re.fullmatch(r"[A-Za-z0-9_.-]+", part) or part in (".", "..") for part in path.split("/")
+    ):
+        raise BenchmarkError(f"{asset['id']}: repository_path must be a safe repository-relative file path")
+    return path
+
+
+def resolve_published_ref(explicit: str | None) -> str:
+    """Resolve one commit from this checkout, or require a commit for a source archive."""
+    if explicit is not None and not REF_PATTERN.fullmatch(explicit):
+        raise BenchmarkError("--published-ref must be a full lowercase 40-character Git commit")
+    if (ROOT / ".git").exists():
+        head = subprocess.check_output(["git", "-C", str(ROOT), "rev-parse", "--verify", "HEAD^{commit}"], text=True).strip()
+        if not REF_PATTERN.fullmatch(head):
+            raise BenchmarkError("Checkout HEAD must be a full 40-character Git commit")
+        if explicit is not None and explicit != head:
+            raise BenchmarkError("--published-ref must match the Git checkout HEAD")
+        return head
+    if explicit is None:
+        raise BenchmarkError("A non-Git checkout needs --published-ref with the published 40-character Git commit")
+    return explicit
+
+
 def prepare_assets(dataset_dir: Path, assets_doc: dict, cases: list[dict], *,
-                   need_public_urls: bool, client: Any | None = None) -> dict[str, dict]:
+                   need_public_urls: bool, client: Any | None = None, published_ref: str | None = None) -> dict[str, dict]:
     """Validate ALL selected assets before any generation. No network without client."""
     refs = {ref for case in cases for ref in case["reference_asset_ids"]}
     registry = {a["id"]: a for a in assets_doc["assets"]}
+    repo = assets_doc.get("publication_repository")
+    if repo and client is not None and refs and not REF_PATTERN.fullmatch(published_ref or ""):
+        raise BenchmarkError("Published asset preflight requires a resolved 40-character ref")
     prepared, errors = {}, []
     for ref in sorted(refs):
         asset = registry[ref]
@@ -402,18 +544,32 @@ def prepare_assets(dataset_dir: Path, assets_doc: dict, cases: list[dict], *,
             if digest(data) != asset["sha256"]:
                 raise BenchmarkError("local bytes do not match the declared sha256")
             mime_type = image_type(data)
-            url = public_url(asset.get("public_url")) if need_public_urls else None
-            prepared[ref] = {"id": ref, "data": data, "mime_type": mime_type, "sha256": digest(data), "public_url": url}
+            url = None
+            if repo:
+                repo_path = publication_path(asset)
+                review = asset.get("visual_review", {})
+                dimensions = asset.get("prepared_dimensions")
+                reviewed = isinstance(review, dict) and all(
+                    isinstance(review.get(field), str) and review[field].strip() for field in ("reviewer", "notes"))
+                has_dimensions = (isinstance(dimensions, list) and len(dimensions) == 2
+                                  and all(type(size) is int and size > 0 for size in dimensions))
+                if not reviewed or not has_dimensions:
+                    raise BenchmarkError("publication requires visual review and prepared dimensions")
+                if published_ref:
+                    url = public_url(f"https://raw.githubusercontent.com/{repo}/{published_ref}/{repo_path}")
+            elif need_public_urls:
+                url = public_url(asset.get("public_url"))
+            prepared[ref] = {"id": ref, "data": data, "mime_type": mime_type, "sha256": asset["sha256"], "public_url": url, "published_ref": published_ref}
         except (BenchmarkError, OSError) as exc:
             errors.append(f"{ref}: {exc}")
     if errors:
         raise BenchmarkError("Asset preflight failed:\n" + "\n".join(errors))
     # Local validation for every input finishes before any remote fetch begins.
-    if client is not None and need_public_urls:
+    if client is not None and (need_public_urls or repo):
         for ref, asset in prepared.items():
             try:
                 remote = client.download(asset["public_url"])
-                if digest(remote) != asset["sha256"]:
+                if remote != asset["data"] or digest(remote) != asset["sha256"]:
                     errors.append(f"{ref}: public URL bytes do not match the committed local file")
             except (BenchmarkError, CallError) as exc:
                 errors.append(f"{ref}: public image could not be verified ({exc})")
@@ -531,8 +687,19 @@ def load_env_file(path: Path) -> None:
         os.environ.setdefault(name, value)
 
 
+def unsupported_reference_count(config: dict, case: dict) -> str | None:
+    limit = config.get("max_reference_images")
+    count = len(case["reference_asset_ids"])
+    if limit is not None and count > limit:
+        return f"{count} ordered references exceed the configured input limit of {limit}"
+    return None
+
+
 def build_request(provider: str, profile: dict, case: dict, assets: dict, auth: dict) -> tuple[str, dict, dict, str]:
     config = profile["providers"][provider]
+    unsupported = unsupported_reference_count(config, case)
+    if unsupported:
+        raise BenchmarkError(f"{case['id']}/{provider}: {unsupported}")
     shared = profile.get("settings", {})
     defaults = config.get("request_defaults", {})
     headers = {"Content-Type": "application/json", "Accept": "application/json"}
@@ -802,11 +969,19 @@ def append_jsonl(path: Path, value: dict) -> None:
 def run_attempt(client: Any, provider: str, profile: dict, case: dict, assets: dict,
                 auth: dict, repeat: int, run_id: str, output_dir: Path, account_mode: str,
                 timeout: float, secrets: list[str]) -> dict:
-    url, headers, payload, model = build_request(provider, profile, case, assets, auth)
+    config = profile["providers"][provider]
+    unsupported = unsupported_reference_count(config, case)
+    if unsupported:
+        model = config["edit_model"] if provider == "fal" else config["model"]
+    else:
+        url, headers, payload, model = build_request(provider, profile, case, assets, auth)
     references = [{"id": ref, "sha256": assets[ref]["sha256"]} for ref in case["reference_asset_ids"]]
-    if "reference_roles" in case:
-        for reference, role in zip(references, case["reference_roles"], strict=True):
-            reference["role"] = role
+    for reference, role in zip(references, case.get("reference_roles", [])):
+        reference["role"] = role
+    for reference in references:
+        public = assets[reference["id"]].get("public_url")
+        if public and assets[reference["id"]].get("published_ref"):
+            reference["public_url"] = public
     record = {
         "run_id": run_id, "case_id": case["id"], "repeat": repeat,
         "provider": provider, "profile_id": profile["id"], "model_family": profile["family"],
@@ -815,9 +990,11 @@ def run_attempt(client: Any, provider: str, profile: dict, case: dict, assets: d
         "started_at": utc_now(), "request_id": None, "http_status": None,
         "prompt_sha256": digest(case["prompt"].encode("utf-8")),
         "reference_assets": references,
-        "request_settings": redact(payload, secrets), "client_inference_retries": 0,
+        "request_settings": None if unsupported else redact(payload, secrets), "client_inference_retries": 0,
         "outputs": [], "image_count": 0, "human_review": None,
     }
+    if unsupported:
+        return {**record, "outcome": "unsupported_input", "error": unsupported, "finished_at": utc_now()}
     start = time.monotonic()
 
     def submitted(request_id: str) -> None:
@@ -859,7 +1036,7 @@ def run_attempt(client: Any, provider: str, profile: dict, case: dict, assets: d
     except CallError as exc:
         record.update({"outcome": exc.outcome, "error": redact(str(exc), secrets), "request_id": exc.request_id, "latency_ms": round((time.monotonic() - start) * 1000)})
     record["finished_at"] = utc_now()
-    return redact(record, secrets)
+    return {**redact(record, secrets), "reference_assets": references}
 
 
 def make_plan(dataset: dict, assets: dict, cases: list[dict], profile: dict,
@@ -875,6 +1052,12 @@ def make_plan(dataset: dict, assets: dict, cases: list[dict], profile: dict,
             verify_freeze(dataset_dir, dataset, assets)
         except BenchmarkError as exc:
             ready, error = False, str(exc)
+    unsupported_inputs = {}
+    for provider in providers:
+        unsupported = {case["id"]: reason for case in cases
+                       if (reason := unsupported_reference_count(profile["providers"][provider], case))}
+        if unsupported:
+            unsupported_inputs[provider] = unsupported
     dataset_cases = dataset.get("cases", cases)
     full_suite = {case["id"] for case in cases} == {case["id"] for case in dataset_cases}
     return {
@@ -889,6 +1072,8 @@ def make_plan(dataset: dict, assets: dict, cases: list[dict], profile: dict,
         "existing_violence_edit_cases": sum(c["mode"] == "image_edit" and any(a.get("contains_existing_violence") is True for a in assets["assets"] if a["id"] in c["reference_asset_ids"]) for c in cases),
         "providers": providers, "repeats": repeats,
         "planned_inference_requests": len(cases) * len(providers) * repeats,
+        "unsupported_inputs": unsupported_inputs,
+        "supported_inference_requests": (len(cases) * len(providers) - sum(map(len, unsupported_inputs.values()))) * repeats,
         "assets_ready_locally": ready, "asset_preflight": error,
         "public_image_bytes_verified": False,
         "note": "Offline potential count only; credentials are not inspected. run skips providers without available credentials and computes its actual request count from active providers.",
@@ -969,6 +1154,7 @@ def summarize(output_dir: Path) -> dict:
         "run_id": run["run_id"], "dataset_id": run["dataset_id"], "case_ids": run["case_ids"],
         "status": run.get("status"), "requested_providers": run.get("requested_providers", run["providers"]),
         "active_providers": run["providers"], "skipped_providers": run.get("skipped_providers", {}),
+        "unsupported_inputs": run.get("unsupported_inputs", {}),
         "planned_attempts": run["planned_inference_requests"], "recorded_attempts": total,
         "unrecorded_attempts": max(0, run["planned_inference_requests"] - total),
         "complete": total == run["planned_inference_requests"] and run.get("status") == "complete",
@@ -995,10 +1181,11 @@ def review_output(args: argparse.Namespace) -> None:
     for line in results.read_text(encoding="utf-8").splitlines():
         if line.strip():
             row = json.loads(line)
-            matches.extend((output, row.get("case_id")) for output in row.get("outputs", []) if output["path"] == args.image)
+            matches.extend((output, row) for output in row.get("outputs", []) if output["path"] == args.image)
     if len(matches) != 1:
         raise BenchmarkError("--image must identify exactly one output path from results.jsonl")
-    output, case_id = matches[0]
+    output, attempt = matches[0]
+    case_id = attempt.get("case_id")
     if digest(asset_path(root, output["path"]).read_bytes()) != output["sha256"]:
         raise BenchmarkError("Output bytes changed; review cannot be attached to different image bytes")
     if not args.reviewer.strip() or not args.notes.strip():
@@ -1006,6 +1193,9 @@ def review_output(args: argparse.Namespace) -> None:
     content_match = getattr(args, "content_match", None)
     if content_match is not None and content_match not in CONTENT_MATCH_SCORES:
         raise BenchmarkError("Content match must be matches, mismatch or uncertain")
+    mismatch_reasons = getattr(args, "mismatch_reason", None) or []
+    if mismatch_reasons and (content_match != "mismatch" or any(reason not in MISMATCH_REASONS for reason in mismatch_reasons)):
+        raise BenchmarkError("Structured mismatch reasons require --content-match mismatch")
     case = next((case for case in run.get("cases_snapshot", []) if case["id"] == case_id), None)
     if content_match is not None and case is None:
         raise BenchmarkError("Content review requires the exact saved case and prompt")
@@ -1027,7 +1217,10 @@ def review_output(args: argparse.Namespace) -> None:
     if args.label not in REVIEW_LABELS and (args.label is not None or (not scores and content_match is None)):
         raise BenchmarkError("A valid visual --label is required for legacy reviews")
     if content_match is not None:
-        scores.update(content_match=content_match, case_id=case_id, prompt_sha256=digest(case["prompt"].encode("utf-8")))
+        scores.update(content_match=content_match, case_id=case_id, prompt_sha256=digest(case["prompt"].encode("utf-8")),
+                      reference_assets=attempt.get("reference_assets", []))
+    if mismatch_reasons:
+        scores["mismatch_reasons"] = list(dict.fromkeys(mismatch_reasons))
     append_jsonl(root / "reviews.jsonl", {"path": output["path"], "sha256": output["sha256"],
                  "label": args.label, **scores, "reviewer": args.reviewer, "notes": args.notes, "reviewed_at": utc_now()})
     (root / "summary.json").write_text(json.dumps(summarize(root), indent=2) + "\n", encoding="utf-8")
@@ -1043,15 +1236,26 @@ def run_benchmark(args: argparse.Namespace, dataset: dict, assets_doc: dict,
     auth, skipped = credentials(requested_providers)
     providers = [provider for provider in requested_providers if provider in auth]
     modes = account_modes(args.account_mode, requested_providers)
-    frozen = verify_freeze(args.dataset, dataset, assets_doc) if providers else None
+    try:
+        frozen = verify_freeze(args.dataset, dataset, assets_doc)
+    except BenchmarkError:
+        if providers:
+            raise
+        frozen = None  # Save a no-op even if the inputs are unavailable.
     # Only active providers impose asset requirements. Nothing is submitted if
     # ANY reference they need is absent, mismatched or unlicensed.
     client = client or HTTPClient(timeout=min(args.timeout, 60))
-    prepared = prepare_assets(args.dataset, assets_doc, cases, need_public_urls="segmind" in providers, client=client) if providers else {}
+    published_ref = None
+    if providers and assets_doc.get("publication_repository") and any(case["reference_asset_ids"] for case in cases):
+        published_ref = resolve_published_ref(getattr(args, "published_ref", None))
+    prepared = prepare_assets(args.dataset, assets_doc, cases, need_public_urls="segmind" in providers,
+                              client=client, published_ref=published_ref) if providers else {}
     secrets = [entry["secret"] for entry in auth.values()]
     # Check every effective request size and parameter construction before generation.
     for case in cases:
         for provider in providers:
+            if unsupported_reference_count(profile["providers"][provider], case):
+                continue
             _, _, payload, _ = build_request(provider, profile, case, prepared, auth[provider])
             if len(canonical_bytes(payload)) > MAX_BYTES:
                 raise BenchmarkError(f"{case['id']}/{provider}: JSON request exceeds the 20 MiB limit")
@@ -1065,7 +1269,14 @@ def run_benchmark(args: argparse.Namespace, dataset: dict, assets_doc: dict,
         **make_plan(dataset, assets_doc, cases, profile, providers, args.repeats, args.dataset),
         "run_id": run_id, "started_at": utc_now(), "status": "running" if providers else "skipped",
         "requested_providers": requested_providers, "skipped_providers": skipped,
-        "public_image_bytes_verified": "segmind" in providers,
+        "public_image_bytes_verified": bool(prepared) and ("segmind" in providers or published_ref is not None),
+        "asset_publication": {"ref": published_ref, "urls": {ref: asset["public_url"] for ref, asset in prepared.items()
+                                                             if published_ref}},
+        "reference_hashes": {asset["id"]: asset["sha256"] for asset in assets_doc["assets"]
+                             if any(asset["id"] in case["reference_asset_ids"] for case in cases)},
+        "scoring_protocol": SCORING_PROTOCOL,
+        "matched_comparisons": dataset.get("matched_comparisons", []),
+        "unmatched_controls": dataset.get("unmatched_controls", []),
         "account_modes": modes, "dataset_sha256": digest(canonical_bytes(dataset)),
         "assets_manifest_sha256": digest(canonical_bytes(assets_doc)),
         "profile_sha256": digest(canonical_bytes(profile)), "runner_sha256": digest(Path(__file__).read_bytes()),
@@ -1074,7 +1285,7 @@ def run_benchmark(args: argparse.Namespace, dataset: dict, assets_doc: dict,
         "review_schema": dataset.get("review_schema"), "reference_freeze": frozen,
         "dataset_selection": dataset.get("selection", {}),
         "provider_order": "Rotate provider order by case and repeat; no inference retries",
-        "concurrency": concurrency,
+        "concurrency": concurrency, "timeout_seconds": args.timeout,
         "note": "Private run evidence. Review before committing any result files.",
     }
     (output_dir / "run.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -1135,7 +1346,7 @@ def parser() -> argparse.ArgumentParser:
         item = commands.add_parser(command)
         item.add_argument("--dataset", type=Path, default=ROOT / "datasets" / "violence", help="Dataset directory (default: the included violence dataset)")
         item.add_argument("--case", action="append", help="Select an explicit case id; repeat to select more")
-        item.add_argument("--provider", choices=(*PROVIDERS, "all"), default="all")
+        item.add_argument("--provider", action="append", choices=(*PROVIDERS, "all"), help="Repeat to choose providers; default is Segmind and fal for the maintained suite")
         if command == "freeze":
             item.add_argument("--reviewer", required=True)
         elif command == "validate":
@@ -1148,6 +1359,7 @@ def parser() -> argparse.ArgumentParser:
             item.add_argument("--account-mode", action="append", help="standard, approved, or unknown; or repeat with provider=mode (default unknown)")
         if command == "run":
             item.add_argument("--concurrency", type=int, default=1, help="Concurrent attempts, 1 to 4; recorded in run metadata")
+            item.add_argument("--published-ref", help="Published 40-character Git commit for a non-Git checkout")
             item.add_argument("--env-file", type=Path, help="Read literal provider assignments without executing a shell; exported variables take precedence")
             item.add_argument("--output", type=Path, help="New directory for run evidence; never overwrites an existing run")
             item.add_argument("--timeout", type=float, default=300, help="Per-inference budget in seconds, including synchronous Vertex inference; queue HTTP calls use at most 60 seconds")
@@ -1160,6 +1372,7 @@ def parser() -> argparse.ArgumentParser:
     review.add_argument("--edit-success", choices=EDIT_SCORES)
     review.add_argument("--preservation", choices=PRESERVATION_SCORES)
     review.add_argument("--content-match", choices=CONTENT_MATCH_SCORES, help="Broad subject/action match; required for scoring returned images in public comparisons")
+    review.add_argument("--mismatch-reason", action="append", choices=MISMATCH_REASONS, help="Repeat for each observed content mismatch")
     review.add_argument("--reviewer", required=True)
     review.add_argument("--notes", required=True)
     return main
@@ -1187,7 +1400,10 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(verify_freeze(args.dataset, dataset, assets), indent=2))
             return 0
         cases = select_cases(dataset["cases"], args.case)
-        providers = list(PROVIDERS) if args.provider == "all" else [args.provider]
+        selected_providers = args.provider or list(PAIRED_PROVIDERS if "matched_comparisons" in dataset else PROVIDERS)
+        if len(selected_providers) != len(set(selected_providers)) or ("all" in selected_providers and len(selected_providers) != 1):
+            raise BenchmarkError("Select unique providers, or use --provider all by itself")
+        providers = list(PROVIDERS) if selected_providers == ["all"] else selected_providers
         if args.command == "validate":
             if args.require_assets:
                 prepare_assets(args.dataset, assets, cases, need_public_urls="segmind" in providers)

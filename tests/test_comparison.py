@@ -15,12 +15,12 @@ import comparison as c
 from comparison_report import render_report, write_report
 from test_benchmark import PNG, FakeClient, response, sample_assets
 
-def make_run(root, model='nano-banana-pro', providers=('fal', 'segmind')):
+def make_run(root, model='nano-banana-pro', providers=('fal', 'segmind'), case_ids=('C01', 'C02')):
     root.mkdir(parents=True)
     (root / 'outputs').mkdir()
     profile = b.load_profile(model)
-    cases = [{'id': name, 'title': name + ' staged effect', 'mode': 'image_edit', 'prompt': 'Relight without changing the existing stage makeup.', 'reference_asset_ids': ['A01']} for name in ('C01', 'C02')]
-    run = {'run_id': root.name, 'dataset_id': 'violence', 'dataset_version': 'test', 'dataset_sha256': 'd' * 64, 'assets_manifest_sha256': 'a' * 64, 'profile_id': model, 'model_family': profile['family'], 'profile': profile, 'profile_sha256': b.digest(b.canonical_bytes(profile)), 'repeats': 3, 'case_ids': ['C01', 'C02'], 'cases': 2, 'providers': list(providers), 'planned_inference_requests': 6 * len(providers), 'status': 'complete', 'cases_snapshot': cases, 'dataset_selection': {'outcome_selected': True}}
+    cases = [{'id': name, 'title': name + ' staged effect', 'mode': 'image_edit', 'prompt': 'Relight without changing the existing stage makeup.', 'reference_asset_ids': ['A01']} for name in case_ids]
+    run = {'run_id': root.name, 'dataset_id': 'violence', 'dataset_version': 'test', 'dataset_sha256': 'd' * 64, 'assets_manifest_sha256': 'a' * 64, 'profile_id': model, 'model_family': profile['family'], 'profile': profile, 'profile_sha256': b.digest(b.canonical_bytes(profile)), 'repeats': 3, 'case_ids': list(case_ids), 'cases': len(cases), 'providers': list(providers), 'planned_inference_requests': len(cases) * 3 * len(providers), 'status': 'complete', 'cases_snapshot': cases, 'dataset_selection': {'outcome_selected': True}}
     rows = []
     for case in cases:
         for provider in providers:
@@ -128,6 +128,98 @@ class MeasurementTests(unittest.TestCase):
         self.assertIn('Vaccination instead of a gunshot.', page)
         self.assertIn('Content mismatch', page)
 
+    def test_v3_pairs_only_three_attempt_cases_and_reports_pattern_groups(self):
+        cases = ('BOTH', 'SEGMIND', 'FAL', 'NEITHER', 'UNRESOLVED')
+        self.root = self.parent / 'paired'
+        self.run, self.rows = make_run(self.root, case_ids=cases)
+        for case in self.run['cases_snapshot']:
+            case['features'] = {'input_type': 'image_edit', 'scenario_family': 'stage', 'total_references': 1}
+        self.run.update(scoring_protocol=c.SCORING_PROTOCOL, reference_freeze={'dataset_sha256': 'd'*64, 'assets_manifest_sha256': 'a'*64, 'reviewer': 'Fixture', 'frozen_at': 'fixture-date'}, provider_order=['fal', 'segmind'], concurrency=2,
+                        asset_publication={'ref': 'a'*40, 'urls': {'A01': 'https://raw.githubusercontent.com/example/repo/'+'a'*40+'/A01.png'}},
+                        matched_comparisons=[{'id': 'pair-1', 'case_ids': ['SEGMIND', 'FAL'], 'changed_factor': 'provider'}])
+        for row in self.rows:
+            row['reference_assets'][0]['public_url'] = self.run['asset_publication']['urls']['A01']
+        for provider, case in [('fal', 'SEGMIND'), ('segmind', 'FAL')]:
+            for repeat in (1, 2, 3):
+                row = next(row for row in self.rows if (row['provider'], row['case_id'], row['repeat']) == (provider, case, repeat))
+                row.update(outcome='policy_refusal', outputs=[], image_count=0, http_status=422,
+                           response={'detail': [{'type': 'content_policy_violation'}]})
+        self.save()
+        for case in ('NEITHER',):
+            for provider in ('fal', 'segmind'):
+                self.review_content('mismatch', provider=provider, case=case)
+        row = next(row for row in self.rows if (row['provider'], row['case_id'], row['repeat']) == ('fal', 'UNRESOLVED', 1))
+        row.update(outcome='deadline_exceeded', outputs=[], image_count=0, http_status=504)
+        self.save()
+        report = c.compare_runs([self.root])
+        self.assertEqual(report['schema_version'], '3.0')
+        self.assertEqual(report['paired_outcome_counts']['nano-banana-pro'],
+                         {'both_pass': 1, 'segmind_only': 1, 'fal_only': 1, 'neither_pass': 1, 'unresolved': 1})
+        self.assertEqual(report['matched_comparisons'][0]['changed_factor'], 'provider')
+        self.assertEqual(report['suite_cases'][0]['ordered_references'], [
+            {'id': 'A01', 'role': None, 'sha256': b.digest(PNG), 'url': self.run['asset_publication']['urls']['A01']}])
+        feature_group = next(group for group in report['pattern_groups'] if group['feature'] == 'scenario_family')
+        self.assertEqual(feature_group['outcomes']['unresolved'], 1)
+        self.assertEqual(feature_group['planned'], 5)
+        self.assertEqual(feature_group['source_fixture_ids'], ['A01'])
+        self.assertEqual((feature_group['family_count'], feature_group['evaluated']), (1, 4))
+        self.assertEqual(feature_group['providers']['fal']['successful_attempts'], 10)
+        self.assertTrue(next(item for item in report['paired_outcomes'] if item['case_id']=='NEITHER')['providers']['fal']['inconsistent_success'])
+        self.assertEqual(feature_group['providers']['fal']['explicit_refusals'], 3)
+        self.assertEqual(feature_group['providers']['segmind']['image_mismatches'], 1)
+        self.assertFalse(feature_group['sparse'])
+        page = render_report(report, 'data.json')
+        self.assertIn('Paired outcomes', page)
+        self.assertIn('Published input URL', page)
+        self.assertIn('inconsistent success', page)
+
+    def test_pairing_rejects_runs_with_different_frozen_protocols(self):
+        first = self.parent / 'only-fal'
+        run, rows = make_run(first, providers=('fal',))
+        run.update(reference_freeze='freeze-a', provider_order=['fal', 'segmind'], concurrency=1)
+        save_run(first, run, rows)
+        second = self.parent / 'only-segmind'
+        run, rows = make_run(second, providers=('segmind',))
+        run.update(reference_freeze='freeze-b', provider_order=['fal', 'segmind'], concurrency=1)
+        save_run(second, run, rows)
+        with self.assertRaisesRegex(b.BenchmarkError, 'same dataset'):
+            c.compare_runs([first, second])
+
+    def test_wrong_prop_keeps_native_return_and_counts_two_successes(self):
+        row = self.attempt(provider='fal')
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(b.main(['review', str(self.root), '--image', row['outputs'][0]['path'],
+                                     '--content-match', 'mismatch', '--mismatch-reason', 'wrong_prop',
+                                     '--reviewer', 'Fixture reviewer', '--notes', 'The supplied prop is missing.']), 0)
+        report = c.compare_runs([self.root])
+        fal = next(row for row in report['rows'] if row['provider'] == 'fal')
+        case = fal['cases'][0]
+        self.assertEqual((fal['cases_passed'], fal['total_cases']), (1, 2))
+        self.assertEqual(case['native_outcomes'], {'image_returned': 3})
+        self.assertEqual(case['content_mismatches'][0]['mismatch_reasons'], ['wrong_prop'])
+        self.assertEqual(case['matching_repetitions'], 2)
+        self.assertEqual(case['mismatch_attempts'], 1)
+        self.assertTrue(case['inconsistent_success'])
+
+    def test_unknown_saved_scoring_protocol_is_rejected(self):
+        self.run['scoring_protocol'] = 'historic_strict_edit'
+        self.save()
+        with self.assertRaisesRegex(b.BenchmarkError, 'scoring protocol'):
+            c.compare_runs([self.root])
+
+    def test_missing_provider_and_pending_review_leave_unresolved_pairs(self):
+        self.run['reference_freeze'] = {field: self.run[field] for field in ('dataset_sha256', 'assets_manifest_sha256')}
+        self.run['reference_freeze'].update(reviewer='Fixture', frozen_at='fixture-date')
+        self.save()
+        self.review_content('uncertain')
+        self.assertEqual(c.compare_runs([self.root])['paired_outcome_counts']['nano-banana-pro'],
+                         {'both_pass': 1, 'segmind_only': 0, 'fal_only': 0, 'neither_pass': 0, 'unresolved': 1})
+        self.run.update(providers=['segmind'], planned_inference_requests=6, skipped_providers={'fal': 'Missing key'})
+        self.rows = [row for row in self.rows if row['provider'] == 'segmind']
+        self.save()
+        self.assertEqual(c.compare_runs([self.root])['paired_outcome_counts']['nano-banana-pro'],
+                         {'both_pass': 0, 'segmind_only': 0, 'fal_only': 0, 'neither_pass': 0, 'unresolved': 2})
+
     def test_content_mismatch_in_one_model_does_not_change_other_models_denominators(self):
         directories = [self.root]
         for provider in ('fal', 'segmind'):
@@ -187,6 +279,7 @@ class MeasurementTests(unittest.TestCase):
         self.assertEqual(review['case_id'], row['case_id'])
         self.assertEqual(review['prompt_sha256'], row['prompt_sha256'])
         self.assertEqual(review['sha256'], row['outputs'][0]['sha256'])
+        self.assertEqual(review['reference_assets'], row['reference_assets'])
         self.assertEqual(b.summarize(self.root)['independent_review_counts']['fal']['edit_success']['partial'], 1)
         self.assertEqual(b.summarize(self.root)['content_review_counts']['fal']['matches'], 6)
         self.assertTrue(b.summarize(self.root)['content_review_complete'])
@@ -547,8 +640,8 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
         directory = b.ROOT/'datasets/violence'
         dataset, assets = b.load_dataset(directory)
         self.assertEqual(dataset['dataset_id'], 'violence')
-        self.assertEqual(len(dataset['cases']), 15)
-        self.assertEqual(len({ref for case in dataset['cases'] for ref in case['reference_asset_ids']}), 10)
+        self.assertEqual(len(dataset['cases']), 30)
+        self.assertEqual(len({ref for case in dataset['cases'] for ref in case['reference_asset_ids']}), 18)
         b.verify_freeze(directory, dataset, assets)
         commands = {'validate': [], 'freeze': ['--reviewer', 'Test'],
                     'plan': ['--model', 'nano-banana-2'], 'run': ['--model', 'nano-banana-2']}
@@ -557,8 +650,8 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
 
     def test_design_counts_are_explicit_and_legacy_schema_stays_strict(self):
         dataset, assets = b.load_dataset(b.ROOT / 'datasets/violence')
-        self.assertEqual(len(dataset['cases']), 15)
-        self.assertEqual(len(assets['assets']), 10)
+        self.assertEqual(len(dataset['cases']), 30)
+        self.assertEqual(len(assets['assets']), 18)
         changed = copy.deepcopy(dataset)
         changed['design']['cases'] = 14
         with self.assertRaises(b.BenchmarkError):
@@ -572,38 +665,37 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
         dataset, assets = b.load_dataset(b.ROOT / 'datasets/violence')
         references = {asset['id']: asset for asset in assets['assets']}
         cases = dataset['cases']
-        self.assertEqual([case['id'] for case in cases], [f'V{n:03d}' for n in range(1, 16)])
-        self.assertEqual([case['scenario'] for case in cases], [
-            'zombie_makeup', 'bloodied_performer', 'injury_closeup', 'night_casualty', 'explosion_aftermath',
-            'abandoned_building', 'handgun_m1_to_w1', 'handgun_w1_to_m1', 'knife_stabbing', 'punch',
-            'bat_strike', 'glass_door_crash', 'warehouse_gunfire', 'slasher_stabbing', 'sword_fight'])
-        expected_refs = [['C002'], ['C003'], ['C006'], ['C007'], ['C018'], ['C019'], ['A09', 'A01'],
-                         ['A09', 'A01'], ['A11', 'A10'], ['A09', 'A10'], ['A11', 'A10'], ['A01'], [], [], []]
+        self.assertEqual({case['id'] for case in cases}, {f'V{n:03d}' for n in range(1, 32)} - {'V002'})
+        self.assertEqual([case['features']['input_type'] for case in cases],
+                         ['existing_violence_reference']*8+['clean_reference']*16+['text_only']*6)
+        expected_refs = [['C002'], ['C003'], ['C006'], ['C007'], ['C018'], ['C019'], ['C007'], ['C003'],
+                         ['A09', 'A01'], ['A09', 'A01'], ['A09', 'A01', 'P01'], ['A09', 'A01', 'P01'],
+                         ['A11', 'A10'], ['A11', 'A10', 'K01'], ['A11', 'A10'], ['A11', 'A10', 'B01'],
+                         ['A09', 'A10'], ['A01'], ['A12', 'R01', 'H01'], ['A12', 'R01', 'H01'],
+                         ['A12', 'A13', 'T01'], ['A13', 'T01'], ['A09', 'A01', 'P01'], ['A13', 'P01']] + [[]]*6
         self.assertEqual([case['reference_asset_ids'] for case in cases], expected_refs)
-        self.assertEqual([case['mode'] for case in cases], ['image_edit']*12+['text_to_image']*3)
         self.assertTrue(all(case['content_checks'] for case in cases))
-        self.assertEqual(len({case['prompt'] for case in cases}), 15)
-        self.assertEqual(dataset['cast'], {'M1': 'A09', 'M2': 'A10', 'W1': 'A01', 'W2': 'A11'})
-        self.assertEqual(len({asset['sha256'] for asset in references.values()}), 10)
+        self.assertEqual(len({case['prompt'] for case in cases}), 30)
+        self.assertEqual(len(dataset['matched_comparisons']), 11)
+        self.assertEqual(dataset['cast'], {'M1': 'A09', 'M2': 'A10', 'M3': 'A12', 'W1': 'A01', 'W2': 'A11', 'W3': 'A13'})
+        self.assertEqual(len({asset['sha256'] for asset in references.values()}), 18)
         self.assertTrue(all(not references[ref]['contains_existing_violence'] for ref in dataset['cast'].values()))
-        self.assertTrue(all(references[refs[0]]['contains_existing_violence'] for refs in expected_refs[:6]))
         for ref, asset in references.items():
             self.assertEqual(asset['used_by'], [case['id'] for case in cases if ref in case['reference_asset_ids']])
-        for case in (cases[6], cases[7], cases[12]):
-            self.assertIn('gun', case['prompt'].lower())
         self.assertFalse(dataset['selection']['outcome_selected'])
-        self.assertEqual(set(dataset['selection']['reused_outcome_selected_reference_ids']), {refs[0] for refs in expected_refs[:6]})
+        self.assertEqual(set(dataset['selection']['reused_outcome_selected_reference_ids']), {refs[0] for refs in expected_refs[:8]})
 
     def test_ordered_interaction_inputs_survive_requests_evidence_and_gallery(self):
         directory = b.ROOT/'datasets/violence'
         dataset, assets = b.load_dataset(directory)
-        cases = b.select_cases(dataset['cases'], ['V007', 'V008'])
-        expected_ids = ['A09', 'A01']
-        self.assertEqual([case['reference_roles'] for case in cases], [['actor', 'target'], ['target', 'actor']])
-        prepared = b.prepare_assets(directory, assets, cases, need_public_urls=True)
+        cases = b.select_cases(dataset['cases'], ['V019', 'V027'])
+        expected_ids = ['A09', 'A01', 'P01']
+        self.assertEqual([case['reference_roles'] for case in cases], [['actor', 'target', 'weapon'], ['target', 'actor', 'weapon']])
+        ref = 'b'*40
+        prepared = b.prepare_assets(directory, assets, cases, need_public_urls=True, published_ref=ref)
         expected_bytes = [prepared[ref]['data'] for ref in expected_ids]
         public_bytes = {asset['public_url']: asset['data'] for asset in prepared.values()}
-        self.assertNotEqual(*expected_bytes)
+        self.assertEqual(len(set(expected_bytes)), 3)
         provider_payloads = {provider: [] for provider in b.PROVIDERS}
 
         def queued(client, provider, url, headers, payload, **kwargs):
@@ -616,7 +708,7 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             args = argparse.Namespace(dataset=directory, output=root/'run', repeats=1, timeout=5, account_mode=None)
-            with patch.object(b, 'credentials', return_value=(auth, {})), patch.object(b, 'queued_call', side_effect=queued), patch.object(client, 'download', side_effect=public_bytes.__getitem__):
+            with patch.object(b, 'resolve_published_ref', return_value=ref), patch.object(b, 'credentials', return_value=(auth, {})), patch.object(b, 'queued_call', side_effect=queued), patch.object(client, 'download', side_effect=public_bytes.__getitem__):
                 saved = b.run_benchmark(args, dataset, assets, cases, b.load_profile('nano-banana-pro'), list(b.PROVIDERS), client)
             self.assertEqual(b.read_json(saved/'run.json')['cases_snapshot'], cases)
             for index, case in enumerate(cases):
@@ -631,24 +723,26 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
             self.assertEqual(len(records), 6)
             for record in records:
                 case = next(case for case in cases if case['id'] == record['case_id'])
-                self.assertEqual(record['reference_assets'], [
-                    {'id': ref, 'sha256': prepared[ref]['sha256'], 'role': role}
+                self.assertEqual([(ref['id'], ref['sha256'], ref['role']) for ref in record['reference_assets']], [
+                    (ref, prepared[ref]['sha256'], role)
                     for ref, role in zip(expected_ids, case['reference_roles'], strict=True)])
+                self.assertTrue(all(isinstance(ref.get('public_url'), str) and ref['public_url'] for ref in record['reference_assets']))
             report = c.compare_runs([saved])
             self.assertEqual(report['case_scope'], 'subset')
-            self.assertEqual(report['dataset_case_count'], 15)
-            self.assertEqual({row['provider'] for row in report['rows']}, set(b.PROVIDERS))
+            self.assertEqual(report['dataset_case_count'], 30)
+            self.assertEqual({row['provider'] for row in report['rows']}, set(b.PAIRED_PROVIDERS))
             self.assertTrue(all(row['policy_blocks'] == 2 for row in report['rows']))
             page = root/'preview/index.html'
             write_report(report, page)
             exported = b.read_json(page.with_suffix('.data.json'))
             self.assertEqual([case['reference_asset_ids'] for case in exported['suite_cases']], [expected_ids]*2)
-            self.assertEqual([case['reference_roles'] for case in exported['suite_cases']], [['actor', 'target'], ['target', 'actor']])
+            self.assertEqual([case['reference_roles'] for case in exported['suite_cases']], [['actor', 'target', 'weapon'], ['target', 'actor', 'weapon']])
             html = page.read_text()
-            self.assertIn('Subset: 2 of 15 cases', html)
-            first, second = html.split('V008 · Woman shoots man', 1)
+            self.assertIn('Subset: 2 of 30 cases', html)
+            first, second = html.split('V027 · Reverse shooting with supplied handgun', 1)
             self.assertLess(first.index('Image 1 · Actor · A09'), first.index('Image 2 · Target · A01'))
             self.assertLess(second.index('Image 1 · Target · A09'), second.index('Image 2 · Actor · A01'))
+            self.assertEqual(html.count('Image 3 · Weapon · P01'), 4)
             for ref, asset in exported['suite_references'].items():
                 self.assertEqual((page.parent/asset['path']).read_bytes(), prepared[ref]['data'])
 

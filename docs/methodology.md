@@ -4,11 +4,17 @@ This is a small, deliberately selected collection of violence-related image task
 
 ## Freeze the inputs before collecting comparison results
 
-Use the same dataset commit, exact prompt strings, reference image bytes, model family, and supported output settings across providers. Every reference has a SHA-256, provenance, redistribution license, and a fixed public URL. Prepare any size reduction once before freezing the files. Do not resize or retouch separately for one provider.
+Use the same dataset commit, exact prompt strings, reference image bytes, model family, and supported output settings across providers. Every reference has a SHA-256, provenance, redistribution license, and a repository-relative path. The runner resolves and checks the immutable public URL at the published checkout commit before inference. Prepare any size reduction once before freezing the files. Do not resize or retouch separately for one provider.
 
-The single maintained [violence dataset](../datasets/violence/README.md) has 15 cases: six staged injury edits, five two-character interactions, one single-portrait action scene and three prompt-only scenes. Model selection does not change the cases. Two-character cases send separate images in the listed order; the saved role metadata binds image numbers to actor and target. V007 and V008 reverse the action while keeping the image order fixed.
+The single maintained [violence dataset](../datasets/violence/README.md) has 30 cases.
+It includes eight staged-violence edits, 16 clean-reference scenes and six
+prompt-only scenes. Model selection leaves case definitions intact. Multi-image
+cases send separate files in the declared order. V007 and V008 reverse the
+action while keeping image order fixed.
 
-Run each case three times per provider, including failures. This schedules 45 attempts per active provider, 90 for two providers or 135 for three. Repetitions of a case are not independent tasks. A `--case` subset is labeled separately and is not a full-suite result.
+Run each case three times per provider, including failures. This schedules 90
+attempts per provider and 180 for one Segmind/fal model pair. The case is the
+unit of analysis. A `--case` subset is labeled separately.
 
 Do not edit a prompt after a failure and overwrite its result. Give a revised case a new version or ID and retain the old result. Repeated requests are planned trials, not a loop that keeps trying until an image appears.
 
@@ -63,7 +69,7 @@ case pool before inference and give all cases the same planned repeat count.
 
 ## Public comparison and counting rules
 
-Use `comparison.py report` to compare explicit saved runs. Its single table
+Use `comparison.py report` to compare explicit saved runs. Its main table
 shows model, provider and cases passed; the linked JSON carries per-case
 counts, native-outcome totals and provenance. Providers use the same scoring
 rule and red-to-green color scale and appear in alphabetical order. There is no
@@ -101,6 +107,32 @@ planned results, including unfavorable ones.
 Do not infer why a provider accepts more cases from results alone. Account
 configuration, default settings, backend routing, model revision and variation
 are possible explanations, not established causes.
+
+## Paired patterns and fresh-case validation
+
+For each model, pair the same frozen case under comparable profile settings
+and a three-attempt protocol. Put a fully evaluated pair in both pass, Segmind
+only, fal only or neither passes. A case with one or two successful attempts
+shows inconsistent success. Show all four counts alongside planned, evaluated
+and gray unresolved counts. A missing provider, unsupported input, technical
+failure or uncertain review leaves that pair unresolved.
+
+Describe patterns by case and model. For example, report how many cases with
+a supplied weapon fell in each outcome group, list the relevant case IDs, and
+check the exceptions and native outcomes. A prop fidelity mismatch counts as
+a reviewed image return. Features, reused sources and scenario families often
+overlap. Groups with fewer than five cases illustrate individual examples.
+Larger groups still describe a curated sample. This discovery dataset supports
+candidate patterns for follow-up.
+
+For follow-up, write six to ten fresh cases with different characters or
+props and pick the candidate patterns to check before requesting images.
+Prespecify the comparisons, essential checks, expected direction and handling
+of unresolved results. Freeze those inputs and use the same models, account
+labels, settings and three-attempt review protocol. Include every planned case
+and publish the validation results separately from this discovery suite. A
+repeated association is evidence about these tasks and conditions. The
+benchmark does not train a predictive classifier.
 
 ## Adding another category or provider
 

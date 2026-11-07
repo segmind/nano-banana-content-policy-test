@@ -55,7 +55,7 @@ class ModelCliTests(unittest.TestCase):
                 self.assertEqual(plans[0]['case_scope'], 'full_dataset')
                 self.assertEqual(plans[0]['case_ids'], [case['id'] for case in dataset['cases']])
                 self.assertEqual(plans[0]['repeats'], 3)
-                self.assertEqual(plans[0]['planned_inference_requests'], plans[0]['cases']*3*len(b.PROVIDERS))
+                self.assertEqual(plans[0]['planned_inference_requests'], 180)
 
     def test_model_argument_is_required_and_conflicting_flags_are_rejected(self):
         for command in ('plan', 'run'):
@@ -96,7 +96,8 @@ class CanonicalRunTests(unittest.TestCase):
         directory = b.ROOT/'datasets/violence'
         dataset, assets = b.load_dataset(directory)
         case_ids = [case['id'] for case in dataset['cases']]
-        prepared = b.prepare_assets(directory, assets, dataset['cases'], need_public_urls=True)
+        ref = b.resolve_published_ref(None) if (b.ROOT/'.git').exists() else 'a'*40
+        prepared = b.prepare_assets(directory, assets, dataset['cases'], need_public_urls=True, published_ref=ref)
         public_bytes = {asset['public_url']: asset['data'] for asset in prepared.values()}
         client = FakeClient()
         auth = {provider: {'secret': 'fixture-key'} for provider in ('fal', 'segmind')}
@@ -108,14 +109,14 @@ class CanonicalRunTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary)/'run'
-            with patch.object(b, 'credentials', return_value=(auth, {'vertex': 'No fixture credentials'})), patch.object(b, 'HTTPClient', return_value=client), patch.object(client, 'download', side_effect=public_bytes.__getitem__), patch.object(b, 'run_attempt', side_effect=attempt), contextlib.redirect_stdout(io.StringIO()):
+            with patch.object(b, 'resolve_published_ref', return_value=ref), patch.object(b, 'credentials', return_value=(auth, {})), patch.object(b, 'HTTPClient', return_value=client), patch.object(client, 'download', side_effect=public_bytes.__getitem__), patch.object(b, 'run_attempt', side_effect=attempt), contextlib.redirect_stdout(io.StringIO()):
                 code = b.main(['run', '--model', 'nano-banana-pro', '--output', str(output)])
             self.assertEqual(code, 0)
             manifest = b.read_json(output/'run.json')
             self.assertEqual(manifest['case_scope'], 'full_dataset')
             self.assertEqual(manifest['case_ids'], case_ids)
-            self.assertEqual(manifest['planned_inference_requests'], 90)
-            self.assertEqual(len(requests), 90)
+            self.assertEqual(manifest['planned_inference_requests'], 180)
+            self.assertEqual(len(requests), 180)
             self.assertEqual(set(requests), {(provider, case, repeat) for provider in auth for case in case_ids for repeat in range(1, 4)})
             self.assertEqual(client.calls, [])
 
@@ -125,9 +126,13 @@ class CanonicalRunTests(unittest.TestCase):
             response({'status': 'COMPLETED'}),
             response({'images': [{'url': 'https://example.com/output.png'}]}),
         ])
+        expected = (b.ROOT/'datasets/violence/assets/C002.jpg').read_bytes()
+        ref = 'a'*40
+        def download(url):
+            return expected if url.endswith('/C002.jpg') else PNG
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp)/'run'
-            with patch.dict(os.environ, {'FAL_KEY': 'local-test'}, clear=True), patch.object(b, 'HTTPClient', return_value=client), contextlib.redirect_stdout(io.StringIO()):
+            with patch.dict(os.environ, {'FAL_KEY': 'local-test'}, clear=True), patch.object(b, 'resolve_published_ref', return_value=ref), patch.object(b, 'HTTPClient', return_value=client), patch.object(client, 'download', side_effect=download), contextlib.redirect_stdout(io.StringIO()):
                 code = b.main(['run', '--model', 'nano-banana-2', '--case', 'V001', '--provider', 'fal', '--repeats', '1', '--output', str(output)])
             self.assertEqual(code, 0)
             manifest = b.read_json(output/'run.json')
