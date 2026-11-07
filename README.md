@@ -1,7 +1,7 @@
 # Nano Banana content policy tests
 
 Compare Segmind and fal on the included [violence dataset](datasets/violence/README.md).
-Version 3.0.0 has 30 fictional filmmaking tasks: eight staged-violence edits,
+Version 3.1.0 has 30 fictional filmmaking tasks: eight staged-violence edits,
 16 clean-reference scenes and six prompt-only scenes. Tasks use ordered character,
 weapon and equipment references where specified.
 

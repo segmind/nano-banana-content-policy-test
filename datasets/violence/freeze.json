@@ -1,6 +1,6 @@
 {
-  "dataset_sha256": "a8592211dfe9020172cd2b64670d345521df90898dc096147c6abf4a69680883",
-  "assets_manifest_sha256": "158e1f0322da543fab6b1bebb9a91459fea9a27637f7adaffb0d51a832c17d25",
-  "frozen_at": "2026-11-07T09:23:25.279+00:00",
+  "dataset_sha256": "c124129b5e3a42242d8faabbea412d2a458165eb014df1edce1f5faeaf9b6135",
+  "assets_manifest_sha256": "1408dd5aa18e142d1624f0960f6a6e4e4b9444b42d4055e6c198e3b5bec1dbdc",
+  "frozen_at": "2026-11-07T12:11:05.564+00:00",
   "reviewer": "Codex visual inspection"
 }

@@ -665,7 +665,7 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
         dataset, assets = b.load_dataset(b.ROOT / 'datasets/violence')
         references = {asset['id']: asset for asset in assets['assets']}
         cases = dataset['cases']
-        self.assertEqual({case['id'] for case in cases}, {f'V{n:03d}' for n in range(1, 32)} - {'V002'})
+        self.assertEqual({case['id'] for case in cases}, {f'V{n:03d}' for n in (*range(1, 19), *range(29, 42))} - {'V002'})
         self.assertEqual([case['features']['input_type'] for case in cases],
                          ['existing_violence_reference']*8+['clean_reference']*16+['text_only']*6)
         expected_refs = [['C002'], ['C003'], ['C006'], ['C007'], ['C018'], ['C019'], ['C007'], ['C003'],
@@ -688,7 +688,7 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
     def test_ordered_interaction_inputs_survive_requests_evidence_and_gallery(self):
         directory = b.ROOT/'datasets/violence'
         dataset, assets = b.load_dataset(directory)
-        cases = b.select_cases(dataset['cases'], ['V019', 'V027'])
+        cases = b.select_cases(dataset['cases'], ['V032', 'V040'])
         expected_ids = ['A09', 'A01', 'P01']
         self.assertEqual([case['reference_roles'] for case in cases], [['actor', 'target', 'weapon'], ['target', 'actor', 'weapon']])
         ref = 'b'*40
@@ -739,7 +739,7 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
             self.assertEqual([case['reference_roles'] for case in exported['suite_cases']], [['actor', 'target', 'weapon'], ['target', 'actor', 'weapon']])
             html = page.read_text()
             self.assertIn('Subset: 2 of 30 cases', html)
-            first, second = html.split('V027 · Reverse shooting with supplied handgun', 1)
+            first, second = html.split('V040 · Reverse shooting with supplied handgun', 1)
             self.assertLess(first.index('Image 1 · Actor · A09'), first.index('Image 2 · Target · A01'))
             self.assertLess(second.index('Image 1 · Target · A09'), second.index('Image 2 · Actor · A01'))
             self.assertEqual(html.count('Image 3 · Weapon · P01'), 4)
