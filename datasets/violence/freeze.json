@@ -1,6 +1,6 @@
 {
-  "dataset_sha256": "79cc997dc397b921266d8dd5342a573ba992c6d52d3aa1abfae925fccfc7cc7a",
-  "assets_manifest_sha256": "92950531b40b54795ed29a146f4f432f99c1cf4574314333a60c9cfb39df98c9",
-  "frozen_at": "2026-11-07T06:33:10.341+00:00",
-  "reviewer": "Codex visual inspection of all ten references and prespecified case prompts, ordered roles and essential content checks"
+  "dataset_sha256": "a8592211dfe9020172cd2b64670d345521df90898dc096147c6abf4a69680883",
+  "assets_manifest_sha256": "158e1f0322da543fab6b1bebb9a91459fea9a27637f7adaffb0d51a832c17d25",
+  "frozen_at": "2026-11-07T09:23:25.279+00:00",
+  "reviewer": "Codex visual inspection"
 }

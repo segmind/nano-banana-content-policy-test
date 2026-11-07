@@ -11,6 +11,7 @@
   },
   "providers": {
     "segmind": {
+      "max_reference_images": 14,
       "model": "nano-banana-2.1",
       "request_defaults": {
         "response_modalities": "TEXT_AND_IMAGE",
@@ -20,6 +21,7 @@
       "documentation_url": "https://www.segmind.com/models/nano-banana-2.1/api"
     },
     "fal": {
+      "max_reference_images": 14,
       "text_model": "google/nano-banana-2.1",
       "edit_model": "google/nano-banana-2.1/edit",
       "request_defaults": {
