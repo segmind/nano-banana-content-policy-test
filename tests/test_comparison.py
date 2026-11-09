@@ -63,6 +63,50 @@ class MeasurementTests(unittest.TestCase):
         self.assertEqual(provider['pass_rate'], 1)
         self.assertEqual(provider['status'], 'complete')
 
+    def test_pending_calibration_is_preserved_and_warned_without_rescoring(self):
+        calibration = {'status': 'pending', 'purpose': 'semantic_adherence',
+                       'baseline_version': '3.1.0', 'note': 'Live checks pending.'}
+        self.run['dataset_calibration'] = calibration
+        self.run['dataset_selection'] = {
+            'outcome_selected': False,
+            'rule': 'Prompts revised using earlier adherence reviews; no cases removed yet.',
+            'reused_outcome_selected_reference_ids': ['A01'],
+        }
+        self.save()
+        self.assertEqual(b.summarize(self.root)['dataset_calibration'], calibration)
+        report = c.compare_runs([self.root])
+        self.assertEqual(report['dataset_calibration'], calibration)
+        self.assertEqual(report['dataset_selection'], self.run['dataset_selection'])
+        self.assertTrue(all((row['cases_passed'], row['total_cases']) == (2, 2) for row in report['rows']))
+        self.assertIn(self.run['dataset_selection']['rule'], report['dataset_scope'])
+        self.assertIn('Reused staged references', report['dataset_scope'])
+        self.assertNotIn('Cases were fixed for coverage before testing', report['dataset_scope'])
+        destination = self.parent/'calibration/index.html'
+        write_report(report, destination)
+        self.assertEqual(b.read_json(destination.with_suffix('.data.json'))['dataset_calibration'], calibration)
+        page = destination.read_text()
+        self.assertIn('Calibration candidate.', page)
+        self.assertIn('pilot measurements, not a final benchmark', page)
+        self.assertLess(page.index('Calibration candidate.'), page.index('<table class="results">'))
+
+        self.run.pop('dataset_calibration')
+        self.run['dataset_selection'] = {'outcome_selected': True}
+        self.save()
+        historical = c.compare_runs([self.root])
+        self.assertNotIn('Calibration candidate.', render_report(historical, 'data.json'))
+        self.assertIn('selected using earlier provider outcomes', historical['dataset_scope'])
+
+    def test_different_calibration_statuses_cannot_be_combined(self):
+        directories = []
+        for provider, status in (('fal', 'pending'), ('segmind', 'complete')):
+            directory = self.parent/provider
+            run, rows = make_run(directory, providers=(provider,))
+            run['dataset_calibration'] = {'status': status}
+            save_run(directory, run, rows)
+            directories.append(directory)
+        with self.assertRaisesRegex(b.BenchmarkError, 'same dataset'):
+            c.compare_runs(directories)
+
     def test_one_explicit_block_prevents_that_case_passing_even_if_other_repeats_return_images(self):
         self.block()
         self.save()
@@ -665,7 +709,8 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
         dataset, assets = b.load_dataset(b.ROOT / 'datasets/violence')
         references = {asset['id']: asset for asset in assets['assets']}
         cases = dataset['cases']
-        self.assertEqual({case['id'] for case in cases}, {f'V{n:03d}' for n in (*range(1, 19), *range(29, 42))} - {'V002'})
+        self.assertEqual({case['id'] for case in cases},
+                         {f'V{n:03d}' for n in (1, 3, 4, 5, 6, 10, 11, 17, 29, 30, 31, *range(42, 56), 58, 59, 60, 61, 62)})
         self.assertEqual([case['features']['input_type'] for case in cases],
                          ['existing_violence_reference']*8+['clean_reference']*16+['text_only']*6)
         expected_refs = [['C002'], ['C003'], ['C006'], ['C007'], ['C018'], ['C019'], ['C007'], ['C003'],
@@ -688,7 +733,7 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
     def test_ordered_interaction_inputs_survive_requests_evidence_and_gallery(self):
         directory = b.ROOT/'datasets/violence'
         dataset, assets = b.load_dataset(directory)
-        cases = b.select_cases(dataset['cases'], ['V032', 'V040'])
+        cases = b.select_cases(dataset['cases'], ['V046', 'V055'])
         expected_ids = ['A09', 'A01', 'P01']
         self.assertEqual([case['reference_roles'] for case in cases], [['actor', 'target', 'weapon'], ['target', 'actor', 'weapon']])
         ref = 'b'*40
@@ -711,6 +756,7 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
             with patch.object(b, 'resolve_published_ref', return_value=ref), patch.object(b, 'credentials', return_value=(auth, {})), patch.object(b, 'queued_call', side_effect=queued), patch.object(client, 'download', side_effect=public_bytes.__getitem__):
                 saved = b.run_benchmark(args, dataset, assets, cases, b.load_profile('nano-banana-pro'), list(b.PROVIDERS), client)
             self.assertEqual(b.read_json(saved/'run.json')['cases_snapshot'], cases)
+            self.assertEqual(b.read_json(saved/'run.json')['dataset_calibration'], dataset['calibration'])
             for index, case in enumerate(cases):
                 fal = provider_payloads['fal'][index]
                 segmind = provider_payloads['segmind'][index]
@@ -739,7 +785,7 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
             self.assertEqual([case['reference_roles'] for case in exported['suite_cases']], [['actor', 'target', 'weapon'], ['target', 'actor', 'weapon']])
             html = page.read_text()
             self.assertIn('Subset: 2 of 30 cases', html)
-            first, second = html.split('V040 · Reverse shooting with supplied handgun', 1)
+            first, second = html.split('V055 · Reverse shooting with supplied handgun', 1)
             self.assertLess(first.index('Image 1 · Actor · A09'), first.index('Image 2 · Target · A01'))
             self.assertLess(second.index('Image 1 · Target · A09'), second.index('Image 2 · Actor · A01'))
             self.assertEqual(html.count('Image 3 · Weapon · P01'), 4)

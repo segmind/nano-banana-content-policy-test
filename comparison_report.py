@@ -128,6 +128,13 @@ a:focus-visible,summary:focus-visible {
   font-size:15px;
   margin-bottom:18px
 }
+.calibration-notice {
+  padding:14px 16px;
+  border:1px solid #d8b56b;
+  border-radius:6px;
+  background:#fff4d8;
+  color:#634716
+}
 .results {
   width:100%;
   border-spacing:0;
@@ -540,6 +547,10 @@ def render_report(report: dict, data_filename: str) -> str:
         case_tables.append(f'''<div><p class="muted">{counts}</p><table class="case-table"><caption>{model} · {provider}</caption><thead><tr><th scope="col">Case</th><th scope="col">Image returns / requests</th><th scope="col">Result</th></tr></thead><tbody>{''.join(cases)}</tbody></table></div>''')
     scope = {'full_dataset': 'Full dataset', 'subset': f'Subset: {report["total_cases"]} of {report.get("dataset_case_count")} cases'}.get(report.get('case_scope'), 'Saved case set (scope not recorded)')
     not_tested = '<p class="scope"><strong>Not tested.</strong> No provider results were recorded for this report.</p>' if all(row['status'] == 'not_run' for row in report['rows']) else ''
+    calibration = report.get('dataset_calibration') or {}
+    calibration_notice = ''
+    if calibration.get('status') == 'pending':
+        calibration_notice = '<p class="calibration-notice" role="note"><strong>Calibration candidate.</strong> Live adherence calibration is pending. Any results shown are pilot measurements, not a final benchmark.</p>'
     reference_cases = sum(bool(case['reference_asset_ids']) for case in suite_cases)
     interactions = sum(len(case['reference_asset_ids']) > 1 for case in suite_cases)
     coverage = f'{reference_cases} reference-based cases, including {interactions} with multiple images, and {len(suite_cases)-reference_cases} prompt-only cases.' if suite_cases else ''
@@ -551,6 +562,7 @@ def render_report(report: dict, data_filename: str) -> str:
 <p class="muted"><strong>Test suite:</strong> {escape(report['dataset_id'])} · version {escape(report['dataset_version'])} · {escape(scope)} · <a href="{DATASET_URL}">Dataset and reproduction guide</a></p>
 <p class="suite-intro">{coverage} Every provider receives the same prompt and ordered reference images for a case. {escape(report.get('suite_description', 'See the exact inputs below.'))}</p>
 <p class="definition"><strong>Passed means every repetition returns images that match the essential content.</strong> Minor visual differences are acceptable. A reviewed mismatch fails that provider’s case. Every planned case stays in the denominator.</p>
+{calibration_notice}
 {not_tested}
 <table class="results"><caption>Cases passed by model and provider</caption><colgroup><col><col><col></colgroup><thead><tr><th scope="col">Model</th><th scope="col">Provider</th><th scope="col">Cases passed</th></tr></thead><tbody>{''.join(rows)}</tbody></table>
 <div class="legend"><span>Fewer cases passed</span><div class="legend-scale" aria-hidden="true"><div class="gradient"></div><div class="legend-labels"><span>0%</span><span>50%</span><span>100%</span></div></div><span>More cases passed</span><span>Gray = incomplete or not run</span></div>
