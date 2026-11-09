@@ -1,9 +1,9 @@
 # Nano Banana content policy tests
 
 Compare Segmind and fal on the included [violence dataset](datasets/violence/README.md).
-Version 3.2.0 is a calibration candidate with 30 fictional filmmaking tasks: eight staged-violence edits,
+The suite has 30 fictional filmmaking tasks: eight staged-violence edits,
 16 clean-reference scenes and six prompt-only scenes. Tasks use ordered character,
-weapon and equipment references where specified. Live calibration is pending.
+weapon and equipment references where specified.
 The [calibration workflow](docs/semantic-calibration.md) explains how to test,
 revise and retire cases before the next scored release. The existing 3.1.0
 results are unchanged.
@@ -201,7 +201,7 @@ python comparison.py report runs/<pro-run> runs/<banana-2-run> --output runs/com
 python comparison.py summarize runs/<run-id>
 ```
 
-The 3.2.0 candidate retains the previous coverage and revises shared prompts
+The initial 3.2.0 candidate retains the previous coverage and revises shared prompts
 and review checks using earlier content-review notes. Later exclusions must be
 recorded for both providers under the same adherence rule. The reused staged
 references came from an earlier outcome-selected collection; the dataset

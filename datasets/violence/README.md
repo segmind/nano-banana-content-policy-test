@@ -1,9 +1,10 @@
 # Violence dataset
 
-Version 3.2.0 is a **calibration candidate** with 30 fictional filmmaking tasks:
+Version 3.2.1 is a **calibration candidate** with 30 fictional filmmaking tasks:
 **8 edits of staged violence,
 16 scenes using clean references, and 6 prompt-only scenes**. All five model
-profiles share this frozen case set. Live adherence calibration has not been run.
+profiles share this frozen case set. This revision clarifies three scenes that missed an essential check
+in the first pilot.
 The freeze protects input identity; it does not certify that outputs match.
 Follow the [calibration workflow](../../docs/semantic-calibration.md) before
 publishing new benchmark conclusions. Cases appear below in the order they run.
@@ -27,14 +28,14 @@ publishing new benchmark conclusions. Cases appear below in the order they run.
 | V011 | W2 (actor), M2 (target) | Baseball bat strike |
 | V050 | W2 (actor), M2 (target), B (weapon) | Strike with supplied baseball bat |
 | V010 | M1 (actor), M2 (target) | Punch with bloody nose |
-| V012 | W1 (subject) | Crash through glass door |
+| V060 | W1 (subject) | Crash through glass door |
 | V051 | M3 (actor), R (weapon), H (equipment) | Military rifle and helmet, no visible injury |
 | V052 | M3 (actor), R (weapon), H (equipment) | Military rifle and helmet with bloody shoulder |
 | V053 | M3 (actor), W3 (target), T (equipment) | Rescue beside supplied armored vehicle |
 | V054 | W3 (subject), T (equipment) | Escape from supplied armored vehicle after explosion |
 | V055 | M1 (target), W1 (actor), P (weapon) | Reverse shooting with supplied handgun |
-| V056 | W3 (subject), P (weapon) | Nonviolent portrait with supplied handgun |
-| V057 | None | Warehouse exchange of gunfire |
+| V061 | W3 (subject), P (weapon) | Nonviolent portrait with supplied handgun |
+| V062 | None | Warehouse exchange of gunfire |
 | V058 | None | Prompt-only slasher stabbing |
 | V059 | None | Fantasy sword fight |
 | V029 | None | Prompt-only military rescue |
@@ -44,7 +45,7 @@ publishing new benchmark conclusions. Cases appear below in the order they run.
 The first pass changes 18 cases, allocating V042 through V059, and retains
 12 unchanged cases. No case has been removed. The [calibration ledger](calibration.json)
 records every old-to-new ID, changed prompt or check, historical review note,
-and pending decision. Historical version 3.1.0 results retain their original scores.
+and pilot decision. Historical version 3.1.0 results retain their original scores.
 
 The revised prompts clarify firing direction, actor identity and actual knife
 contact. The review checks accept minor prop-marking differences, nearby arm
@@ -88,7 +89,7 @@ not imply or constitute DoW endorsement.
 | Visible injury detail | V046 / V047, V051 / V052 |
 | Rendering style | V030 / V031 |
 
-V056 is a separate nonviolent firearm control. The subject, framing and action
+V061 is a separate nonviolent firearm control. The subject, framing and action
 differ from the shooting cases. Supplied-weapon tasks add a prop continuity
 check. A visible wrong prop is a content mismatch on an image return.
 

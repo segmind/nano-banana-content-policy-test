@@ -710,7 +710,7 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
         references = {asset['id']: asset for asset in assets['assets']}
         cases = dataset['cases']
         self.assertEqual({case['id'] for case in cases},
-                         {f'V{n:03d}' for n in (1, 3, 4, 5, 6, 10, 11, 12, 17, 29, 30, 31, *range(42, 60))})
+                         {f'V{n:03d}' for n in (1, 3, 4, 5, 6, 10, 11, 17, 29, 30, 31, *range(42, 56), 58, 59, 60, 61, 62)})
         self.assertEqual([case['features']['input_type'] for case in cases],
                          ['existing_violence_reference']*8+['clean_reference']*16+['text_only']*6)
         expected_refs = [['C002'], ['C003'], ['C006'], ['C007'], ['C018'], ['C019'], ['C007'], ['C003'],

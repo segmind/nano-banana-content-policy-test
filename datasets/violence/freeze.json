@@ -1,6 +1,6 @@
 {
-  "dataset_sha256": "447e5731ea95844bc00652eb95c5e0916b3f0deb9b5c94e5f6462719dfd73c91",
-  "assets_manifest_sha256": "1b3be6dd583dffc85c3d096fee7019d93502ca09193074a98776b2e23b7e608a",
-  "frozen_at": "2026-11-09T02:35:53.330+00:00",
-  "reviewer": "Codex prompt and rubric review; existing fixtures unchanged; live calibration pending"
+  "dataset_sha256": "14428d9e258b0649b8f7518f6b215326a6ecc31ef09542d7c3ef0e4ca5bddc6e",
+  "assets_manifest_sha256": "dec2b68d0c8a161179c7f3849597f1c77aa31ab97cbc6af7b7946dd83a54d1ea",
+  "frozen_at": "2026-11-09T04:39:31.015+00:00",
+  "reviewer": "Codex visual review of first pilot and shared prompt repairs"
 }

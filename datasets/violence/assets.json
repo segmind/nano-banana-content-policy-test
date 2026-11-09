@@ -421,7 +421,7 @@
         "V045",
         "V046",
         "V047",
-        "V012",
+        "V060",
         "V055"
       ],
       "generation_tool": "fal queue API",
@@ -686,7 +686,7 @@
       "used_by": [
         "V053",
         "V054",
-        "V056"
+        "V061"
       ]
     },
     {
@@ -733,7 +733,7 @@
         "V046",
         "V047",
         "V055",
-        "V056"
+        "V061"
       ],
       "essential_match_cue": "handgun with a pistol grip and barrel",
       "optional_preservation_note": "Optional prop continuity: turquoise slide and amber-orange grip panel."

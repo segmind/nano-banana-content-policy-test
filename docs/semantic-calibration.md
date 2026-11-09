@@ -1,8 +1,8 @@
 # Calibrate the intended scene before the next comparison
 
-The 3.2.0 candidate is a first prompt and rubric revision. It has not demonstrated
-better adherence in a live run. Its freeze records immutable inputs so the runner
-can test them; a freeze is not evidence that the resulting images match.
+The 3.2.0 candidate starts the bounded calibration with a prompt and rubric
+revision. Its freeze records immutable inputs so the runner can test them.
+The saved visual reviews establish which resulting images match.
 
 The candidate's `calibration.status` is `pending`. Initial decisions and the
 old-to-new case mapping are in
