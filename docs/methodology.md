@@ -127,14 +127,24 @@ overlap. Groups with fewer than five cases illustrate individual examples.
 Larger groups still describe a curated sample. This discovery dataset supports
 candidate patterns for follow-up.
 
-For follow-up, write six to ten fresh cases with different characters or
-props and pick the candidate patterns to check before requesting images.
-Prespecify the comparisons, essential checks, expected direction and handling
-of unresolved results. Freeze those inputs and use the same models, account
-labels, settings and three-attempt review protocol. Include every planned case
-and publish the validation results separately from this discovery suite. A
-repeated association is evidence about these tasks and conditions. The
-benchmark does not train a predictive classifier.
+For independent validation, build 16 fresh cases with different characters,
+props or staged references. At least 13 cases must use a reference. Choose
+three to five testable hypotheses from the discovery results. Include
+counterexamples and record the comparisons, essential checks, expected direction
+and handling of unresolved results before requesting any images.
+
+Keep the holdout under `datasets/violence/holdout` with its own cases, asset
+manifest and freeze. Record the hypotheses in the holdout's `cases.json` so
+the freeze covers the predictions as well as the prompts. Select the holdout
+with `--dataset datasets/violence/holdout` for freeze, validate, plan and run.
+Use the same model profile, account labels, settings and three-attempt review
+protocol. With both providers active, the holdout schedules 96 attempts.
+
+Use only the holdout run when generating its report and supply the matching
+holdout directory with `--dataset` so the report can verify the reference
+previews. Include every planned case and publish the holdout separately. Report
+which predictions the discovery and holdout support, which holdout cases
+contradict them and which predictions remain uncertain.
 
 ## Adding another category or provider
 
