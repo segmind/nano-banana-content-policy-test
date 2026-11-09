@@ -1,6 +1,6 @@
 {
-  "dataset_sha256": "27af3974f1c401b82bfd7d3fefd6f27ac125cb72ba197c746ffbecb6a935a507",
+  "dataset_sha256": "0b0d99109b0a11e700d043256570d5e678c998212e0b7534244fff2c101e7c06",
   "assets_manifest_sha256": "df859cea2d687f0dbbf79e659b91ec7c8f0def8ef3bb6f001e6ecba3e41b18f6",
-  "frozen_at": "2026-11-09T08:04:49.337+00:00",
-  "reviewer": "Codex visual audit and matched-case review"
+  "frozen_at": "2026-11-09T08:14:38.259+00:00",
+  "reviewer": "Codex review of all targeted pilot images and retained inputs"
 }

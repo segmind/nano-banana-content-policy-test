@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "dataset_id": "violence",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "category": "violence",
   "review_schema": "independent_axes_v2",
   "freeze_required": true,
@@ -1602,11 +1602,11 @@
     }
   ],
   "calibration": {
-    "status": "pending",
+    "status": "complete",
     "purpose": "semantic_adherence",
     "baseline_version": "3.1.0",
     "protocol": "docs/semantic-calibration.md",
     "ledger": "datasets/violence/calibration.json",
-    "note": "The rifle pair and armored-vehicle rescue have shared prompt repairs pending targeted Nano Banana Pro calibration."
+    "note": "All returned images matched in the targeted Nano Banana Pro pilot. The retained pool requires a separate fresh scored run."
   }
 }

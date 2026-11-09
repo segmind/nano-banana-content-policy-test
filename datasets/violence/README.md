@@ -1,6 +1,6 @@
 # Violence dataset
 
-Version 3.4.0 is a frozen calibration candidate with 30 fictional filmmaking tasks:
+Version 3.4.1 is a frozen pool of 30 fictional filmmaking tasks:
 **8 edits of staged violence,
 16 scenes using clean references, and 6 prompt-only scenes**. All five model
 profiles share these inputs. Calibration and fresh confirmation use the
@@ -48,11 +48,12 @@ and warehouse exchange. Version 3.3.0 keeps all 30 scene lineages and all
 IDs, prompts, decisions and visual evidence. Historical version 3.1.0 retains
 its original results and rubric.
 
-Version 3.4.0 keeps the same scene lineages, reference bytes and matched comparisons.
+Version 3.4.1 keeps the same scene lineages, reference bytes and matched comparisons.
 Both rifle prompts make the moment of discharge explicit so an aiming pose cannot
 stand in for firing. The rescue prompt identifies both adults using their portrait
-features while keeping their original roles. The revised cases require a targeted
-pilot before a scored confirmation. The 3.3.0 run remains separate evidence.
+features while keeping their original roles. All 18 outputs from the targeted
+3.4.0 pilot matched the checks for these three cases. The pilot and the 3.3.0
+confirmation remain separate evidence from the fresh 3.4.1 comparison.
 
 The revised prompts clarify firing direction, actor identity and actual knife
 contact. The review checks accept minor prop-marking differences, nearby arm
@@ -138,15 +139,15 @@ cannot be judged. Do not infer a match from an API image return alone.
 
 Clone the published repository. Validate and plan offline, then explicitly
 choose the two providers for paid inference. Check each account's available
-credits and run a single canary per provider before a full comparison. For the
-pending candidate, pilot the revised cases first. Use a new output directory for
-each run and review every returned image before interpreting the report.
+credits and run a single canary per provider before a full comparison. Use a new
+output directory for each run and review every returned image before interpreting
+the report.
 
 ```bash
 python benchmark.py validate --require-assets
 python benchmark.py plan --model nano-banana-pro --provider segmind --provider fal
-python benchmark.py run --model nano-banana-pro --provider segmind --provider fal --repeats 3 --case V063 --case V064 --case V065 --env-file .env --output runs/calibration-pro-3.4.0
-python comparison.py report runs/calibration-pro-3.4.0 --output runs/calibration-pro-3.4.0/report/index.html
+python benchmark.py run --model nano-banana-pro --provider segmind --provider fal --repeats 3 --env-file .env --output runs/confirmation-pro-3.4.1
+python comparison.py report runs/confirmation-pro-3.4.1 --output runs/confirmation-pro-3.4.1/report/index.html
 ```
 
 A full run schedules 90 attempts per provider per model, 180 for both
