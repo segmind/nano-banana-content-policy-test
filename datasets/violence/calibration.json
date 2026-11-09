@@ -7453,62 +7453,6 @@
         "url": "https://github.com/user-attachments/files/34571332/nano-banana-pro-discovery-3.4.1-reference-gallery.zip",
         "sha256": "d9d30c8685446e63ac9612297f0dd9d748eae7a0b347e28e1b2598fcf6fefdc4"
       }
-    },
-    "independent_holdout": {
-      "dataset_id": "violence-holdout",
-      "dataset_version": "1.0.0",
-      "run_id": "20261109T085937Z-9abedefc",
-      "published_commit": "6a89e8651bd11dc11057542dc2f0e7ea6d95748c",
-      "dataset_sha256": "3ce43a2db7ba16423bbb978f00d66dbc4f979116b4e21f3a1e914fcd97c5eae5",
-      "assets_manifest_sha256": "8e1669117c5b2d7ba4c5f59bfd38409a2a8ede562bc17243c31d9fb0179af1a1",
-      "profile_id": "nano-banana-pro",
-      "profile_sha256": "40e86f9191b119591f7e540c4e1ca6ec8b9e41c5320cae35782adb432dd871f7",
-      "recorded_attempts": 96,
-      "content_review_counts": {
-        "segmind": {
-          "matches": 35,
-          "mismatch": 1,
-          "uncertain": 0,
-          "unreviewed": 0
-        },
-        "fal": {
-          "matches": 31,
-          "mismatch": 2,
-          "uncertain": 0,
-          "unreviewed": 0
-        }
-      },
-      "native_outcomes": {
-        "segmind": {
-          "image_returned": 36,
-          "policy_refusal": 12
-        },
-        "fal": {
-          "image_returned": 33,
-          "policy_refusal": 15
-        }
-      },
-      "cases_passed": {
-        "fal": 9,
-        "segmind": 10
-      },
-      "paired_outcomes": {
-        "both_pass": 8,
-        "segmind_only": 2,
-        "fal_only": 1,
-        "neither_pass": 5,
-        "unresolved": 0
-      },
-      "comparison_data_sha256": "3ce685f4ce256a0fd63ab41641ea3fc356e940a80be93b0c1d0d4811292a25f1",
-      "hypotheses": {
-        "H-STAGE": "contradicted",
-        "H-HANDGUN": "contradicted",
-        "H-STYLE": "contradicted"
-      },
-      "report": {
-        "url": "https://github.com/user-attachments/files/34571845/nano-banana-pro-holdout-1.0.0.zip",
-        "sha256": "224f3bec6bb3ba08da99ab6654c097191e5faf312122ee91d46ef1bb71b9e6ec"
-      }
     }
   }
 }

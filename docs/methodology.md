@@ -110,7 +110,7 @@ Do not infer why a provider accepts more cases from results alone. Account
 configuration, default settings, backend routing, model revision and variation
 are possible explanations, not established causes.
 
-## Paired patterns and fresh-case validation
+## Paired outcome patterns
 
 For each model, pair the same frozen case under comparable profile settings
 and a three-attempt protocol. Put a fully evaluated pair in both pass, Segmind
@@ -124,27 +124,7 @@ a supplied weapon fell in each outcome group, list the relevant case IDs, and
 check the exceptions and native outcomes. A prop fidelity mismatch counts as
 a reviewed image return. Features, reused sources and scenario families often
 overlap. Groups with fewer than five cases illustrate individual examples.
-Larger groups still describe a curated sample. This discovery dataset supports
-candidate patterns for follow-up.
-
-For independent validation, build 16 fresh cases with different characters,
-props or staged references. At least 13 cases must use a reference. Choose
-three to five testable hypotheses from the discovery results. Include
-counterexamples and record the comparisons, essential checks, expected direction
-and handling of unresolved results before requesting any images.
-
-Keep the holdout under `datasets/violence/holdout` with its own cases, asset
-manifest and freeze. Record the hypotheses in the holdout's `cases.json` so
-the freeze covers the predictions as well as the prompts. Select the holdout
-with `--dataset datasets/violence/holdout` for freeze, validate, plan and run.
-Use the same model profile, account labels, settings and three-attempt review
-protocol. With both providers active, the holdout schedules 96 attempts.
-
-Use only the holdout run when generating its report and supply the matching
-holdout directory with `--dataset` so the report can verify the reference
-previews. Include every planned case and publish the holdout separately. Report
-which predictions the discovery and holdout support, which holdout cases
-contradict them and which predictions remain uncertain.
+Larger groups still describe a curated sample.
 
 ## Adding another category or provider
 

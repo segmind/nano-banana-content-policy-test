@@ -61,12 +61,10 @@ injury locations and faint background marks outside the focal cleanup task.
 Required actions, recognizable people and objects, and the blood/no-injury
 contrasts remain essential.
 
-The [3.4.1 discovery report](https://github.com/user-attachments/files/34571327/nano-banana-pro-discovery-3.4.1.zip)
+The [3.4.1 comparison report](https://github.com/user-attachments/files/34571327/nano-banana-pro-discovery-3.4.1.zip)
 contains the comparison, case-level analysis and review records. Extract its
 [reference-gallery supplement](https://github.com/user-attachments/files/34571332/nano-banana-pro-discovery-3.4.1-reference-gallery.zip)
-into the same directory to view every original reference. The
-[independent holdout report](https://github.com/user-attachments/files/34571845/nano-banana-pro-holdout-1.0.0.zip)
-reports the 16 frozen holdout cases separately.
+into the same directory to view every original reference.
 
 ## Fixture inventory
 
