@@ -219,6 +219,8 @@ def measure_run(directory: Path) -> dict:
         bundled = {case['id']: case for case in current['cases']}
         if all(bundled.get(case_id) == case for case_id, case in cases.items()):
             selection = current.get('selection')
+    calibration = run.get('dataset_calibration')
+    b.validate_calibration(calibration)
     return {'run_id': run['run_id'], 'model_id': profile['id'], 'model_label': profile.get('label', profile['id']),
             'model_family': profile['family'], 'profile_sha256': run['profile_sha256'],
             'dataset_id': run['dataset_id'], 'dataset_version': run.get('dataset_version', 'unknown'),
@@ -231,6 +233,7 @@ def measure_run(directory: Path) -> dict:
             'reference_freeze': freeze, 'provider_order': run.get('provider_order'),
             'concurrency': run.get('concurrency'), 'timeout_seconds': run.get('timeout_seconds'), 'asset_publication': publication,
             'matched_comparisons': run.get('matched_comparisons', []), 'unmatched_controls': run.get('unmatched_controls', []),
+            'dataset_selection': selection, 'dataset_calibration': calibration,
             'outcome_selected_dataset': selection.get('outcome_selected') if isinstance(selection, dict) else None,
             'reused_outcome_selected_references': bool(selection.get('reused_outcome_selected_reference_ids')) if isinstance(selection, dict) else False,
             'started_at': run.get('started_at'), 'finished_at': run.get('finished_at'), 'providers': metrics}
@@ -242,7 +245,7 @@ def compare_runs(directories: list[Path]) -> dict:
         raise b.BenchmarkError('Supply at least one saved run directory')
     reports = [measure_run(directory) for directory in directories]
     first = reports[0]
-    identity = ('dataset_id', 'dataset_version', 'dataset_sha256', 'assets_manifest_sha256', 'cases_sha256', 'repeats', 'case_scope', 'dataset_case_count', 'scoring_protocol', 'reference_freeze', 'provider_order', 'concurrency', 'timeout_seconds', 'matched_comparisons', 'unmatched_controls')
+    identity = ('dataset_id', 'dataset_version', 'dataset_sha256', 'assets_manifest_sha256', 'cases_sha256', 'repeats', 'case_scope', 'dataset_case_count', 'scoring_protocol', 'reference_freeze', 'provider_order', 'concurrency', 'timeout_seconds', 'matched_comparisons', 'unmatched_controls', 'dataset_calibration')
     rows, profiles, references, models, publications = {}, {}, {}, {}, {}
     for report in reports:
         if any(report[field] != first[field] for field in identity):
@@ -280,7 +283,16 @@ def compare_runs(directories: list[Path]) -> dict:
         for row in ordered_rows:
             if row['status'] != 'not_run':
                 row.update(status='incomplete', pass_rate=None)
-    if any(report['outcome_selected_dataset'] is True for report in reports):
+    if first['dataset_calibration'] is not None:
+        selection = first['dataset_selection'] or {}
+        rule = selection.get('rule') if isinstance(selection, dict) else None
+        scope = f'Selection rule: {rule.strip()} ' if isinstance(rule, str) and rule.strip() else ''
+        if any(report['outcome_selected_dataset'] is True for report in reports):
+            scope += 'This suite includes cases selected using earlier provider outcomes. '
+        if any(report['reused_outcome_selected_references'] for report in reports):
+            scope += 'Reused staged references came from an earlier collection selected using provider outcomes. '
+        scope += 'Results describe this suite, not overall provider performance.'
+    elif any(report['outcome_selected_dataset'] is True for report in reports):
         scope = 'This suite includes cases selected using earlier provider outcomes. Results describe these cases, not overall provider performance.'
     elif any(report['reused_outcome_selected_references'] for report in reports):
         scope = 'Cases were fixed for coverage before testing. Reused staged references came from an earlier collection selected using provider outcomes. Results describe this suite, not overall provider performance.'
@@ -305,6 +317,7 @@ def compare_runs(directories: list[Path]) -> dict:
     return {'schema_version': '3.0', 'scoring_protocol': first['scoring_protocol'], 'reference_freeze': first['reference_freeze'], 'provider_order': first['provider_order'],
             'concurrency': first['concurrency'], 'timeout_seconds': first['timeout_seconds'], 'asset_publications': publications,
             'matched_comparisons': first['matched_comparisons'], 'unmatched_controls': first['unmatched_controls'],
+            'dataset_selection': first['dataset_selection'], 'dataset_calibration': first['dataset_calibration'],
             'paired_outcomes': paired, 'paired_outcome_counts': paired_counts, 'pattern_groups': pattern_groups,
             'generated_at': b.utc_now(), 'dataset_id': first['dataset_id'],
             'dataset_version': first['dataset_version'], 'dataset_sha256': first['dataset_sha256'],

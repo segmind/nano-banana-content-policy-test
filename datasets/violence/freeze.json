@@ -1,6 +1,6 @@
 {
-  "dataset_sha256": "c124129b5e3a42242d8faabbea412d2a458165eb014df1edce1f5faeaf9b6135",
-  "assets_manifest_sha256": "1408dd5aa18e142d1624f0960f6a6e4e4b9444b42d4055e6c198e3b5bec1dbdc",
-  "frozen_at": "2026-11-07T12:11:05.564+00:00",
-  "reviewer": "Codex visual inspection"
+  "dataset_sha256": "447e5731ea95844bc00652eb95c5e0916b3f0deb9b5c94e5f6462719dfd73c91",
+  "assets_manifest_sha256": "1b3be6dd583dffc85c3d096fee7019d93502ca09193074a98776b2e23b7e608a",
+  "frozen_at": "2026-11-09T02:35:53.330+00:00",
+  "reviewer": "Codex prompt and rubric review; existing fixtures unchanged; live calibration pending"
 }

@@ -169,7 +169,15 @@ def load_dataset(dataset_dir: Path) -> tuple[dict, dict]:
         raise BenchmarkError("Unsupported review_schema")
     if "matched_comparisons" in cases or any("features" in case for case in cases["cases"]):
         validate_case_features(cases, assets)
+    validate_calibration(cases.get("calibration"))
     return cases, assets
+
+
+def validate_calibration(calibration: Any) -> None:
+    """Check optional release metadata without changing trial scoring."""
+    if calibration is not None and (not isinstance(calibration, dict)
+                                    or calibration.get("status") not in ("pending", "complete")):
+        raise BenchmarkError("Dataset calibration must have status pending or complete")
 
 
 def validate_reference_roles(case: dict) -> None:
@@ -1068,6 +1076,7 @@ def make_plan(dataset: dict, assets: dict, cases: list[dict], profile: dict,
     full_suite = {case["id"] for case in cases} == {case["id"] for case in dataset_cases}
     return {
         "dataset_id": dataset["dataset_id"], "dataset_version": dataset["version"],
+        **({"dataset_calibration": dataset["calibration"]} if "calibration" in dataset else {}),
         "profile_id": profile["id"], "model_family": profile["family"],
         "case_ids": [c["id"] for c in cases], "cases": len(cases),
         "case_scope": "full_dataset" if full_suite else "subset",
@@ -1158,6 +1167,7 @@ def summarize(output_dir: Path) -> dict:
         reviews_complete = reviews_complete and all(scores[axis]["unreviewed"] == 0 for scores in axis_counts.values() for axis in ("edit_success", "preservation"))
     return {
         "run_id": run["run_id"], "dataset_id": run["dataset_id"], "case_ids": run["case_ids"],
+        **({"dataset_calibration": run["dataset_calibration"]} if "dataset_calibration" in run else {}),
         "status": run.get("status"), "requested_providers": run.get("requested_providers", run["providers"]),
         "active_providers": run["providers"], "skipped_providers": run.get("skipped_providers", {}),
         "unsupported_inputs": run.get("unsupported_inputs", {}),

@@ -44,7 +44,7 @@ class ReferenceRevisionTests(unittest.TestCase):
 
     def test_changed_matched_pair_and_wrong_fixture_kind_are_rejected(self):
         dataset, assets = b.load_dataset(b.ROOT/'datasets/violence')
-        reverse = next(case for case in dataset['cases'] if case['id'] == 'V040')
+        reverse = next(case for case in dataset['cases'] if case['id'] == 'V055')
         reverse['reference_asset_ids'][:2] = reversed(reverse['reference_asset_ids'][:2])
         with self.assertRaisesRegex(b.BenchmarkError, 'reference order'):
             b.validate_case_features(dataset, assets)
@@ -188,7 +188,8 @@ class ReferenceRevisionTests(unittest.TestCase):
     def test_missing_credentials_skip_without_requiring_a_freeze(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            dataset = {'dataset_id': 'fixture', 'version': '1', 'freeze_required': True, 'cases': []}
+            dataset = {'dataset_id': 'fixture', 'version': '1', 'freeze_required': True, 'cases': [],
+                       'calibration': {'status': 'pending', 'purpose': 'semantic_adherence'}}
             args = argparse.Namespace(dataset=root, account_mode=None, timeout=10, repeats=1, output=root / 'run')
             client = FakeClient()
             with patch.dict('os.environ', {}, clear=True):
@@ -196,6 +197,8 @@ class ReferenceRevisionTests(unittest.TestCase):
             summary = b.summarize(output)
             self.assertEqual(summary['active_providers'], [])
             self.assertEqual(summary['recorded_attempts'], 0)
+            self.assertEqual(summary['dataset_calibration'], dataset['calibration'])
+            self.assertEqual(b.read_json(output/'run.json')['dataset_calibration'], dataset['calibration'])
             self.assertEqual(client.calls, [])
 
     def test_independent_scores_do_not_infer_from_legacy_label(self):
