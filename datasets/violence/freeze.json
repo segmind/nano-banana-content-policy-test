@@ -1,6 +1,6 @@
 {
-  "dataset_sha256": "14428d9e258b0649b8f7518f6b215326a6ecc31ef09542d7c3ef0e4ca5bddc6e",
+  "dataset_sha256": "a72c5d2c1d3a808b9950e5f1f70a297623e8fe5aa31e030e372d1580b905dea4",
   "assets_manifest_sha256": "dec2b68d0c8a161179c7f3849597f1c77aa31ab97cbc6af7b7946dd83a54d1ea",
-  "frozen_at": "2026-11-09T04:39:31.015+00:00",
-  "reviewer": "Codex visual review of first pilot and shared prompt repairs"
+  "frozen_at": "2026-11-09T04:43:29.951+00:00",
+  "reviewer": "Codex visual review of both pilots and the retained pool"
 }

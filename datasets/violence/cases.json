@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "dataset_id": "violence",
-  "version": "3.2.1",
+  "version": "3.3.0",
   "category": "violence",
   "review_schema": "independent_axes_v2",
   "freeze_required": true,
@@ -1397,7 +1397,7 @@
   ],
   "selection": {
     "outcome_selected": false,
-    "rule": "This development version uses shared prompt repairs where reviewed pilot images missed the scene. The case set keeps the staged, clean-reference and prompt-only coverage.",
+    "rule": "The prompts were calibrated for observed scene adherence in paired Nano Banana Pro pilots. All 30 scene lineages and 11 matched comparisons were retained. Prompt changes can affect observed refusal rates. The same prompts and criteria apply to both providers.",
     "reused_outcome_selected_reference_ids": [
       "C002",
       "C003",
@@ -1602,11 +1602,11 @@
     }
   ],
   "calibration": {
-    "status": "pending",
+    "status": "complete",
     "purpose": "semantic_adherence",
     "baseline_version": "3.1.0",
     "protocol": "docs/semantic-calibration.md",
     "ledger": "datasets/violence/calibration.json",
-    "note": "Revised candidates require live review before the retained pool is frozen."
+    "note": "Shared prompt calibration completed on Nano Banana Pro. The retained pool requires its own fresh scored run."
   }
 }

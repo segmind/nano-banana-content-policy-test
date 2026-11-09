@@ -1,13 +1,12 @@
 # Violence dataset
 
-Version 3.2.1 is a **calibration candidate** with 30 fictional filmmaking tasks:
+Version 3.3.0 is the frozen pool of 30 fictional filmmaking tasks:
 **8 edits of staged violence,
 16 scenes using clean references, and 6 prompt-only scenes**. All five model
-profiles share this frozen case set. This revision clarifies three scenes that missed an essential check
-in the first pilot.
-The freeze protects input identity; it does not certify that outputs match.
-Follow the [calibration workflow](../../docs/semantic-calibration.md) before
-publishing new benchmark conclusions. Cases appear below in the order they run.
+profiles share these inputs. Calibration and fresh confirmation use the
+Nano Banana Pro profile. The [calibration workflow](../../docs/semantic-calibration.md)
+explains the distinction between pilot and confirmation evidence. Cases appear below
+in the order they run.
 
 | Case | Inputs in order | Scene |
 | --- | --- | --- |
@@ -42,10 +41,12 @@ publishing new benchmark conclusions. Cases appear below in the order they run.
 | V030 | None | Prompt-only punch, photorealistic |
 | V031 | None | Prompt-only punch, graphic novel |
 
-The first pass changes 18 cases, allocating V042 through V059, and retains
-12 unchanged cases. No case has been removed. The [calibration ledger](calibration.json)
-records every old-to-new ID, changed prompt or check, historical review note,
-and pilot decision. Historical version 3.1.0 results retain their original scores.
+The 3.2.0 candidate revised 18 cases. The 3.2.1 targeted pilot tested three
+shared prompt repairs covering the glass-door crash, lowered-handgun portrait
+and warehouse exchange. Version 3.3.0 keeps all 30 scene lineages and all
+11 matched comparisons. The [calibration ledger](calibration.json) records
+IDs, prompts, decisions and visual evidence. Historical version 3.1.0 retains
+its original results and rubric.
 
 The revised prompts clarify firing direction, actor identity and actual knife
 contact. The review checks accept minor prop-marking differences, nearby arm
@@ -127,18 +128,18 @@ photorealistic versus graphic-novel style. Use `uncertain` when essential eviden
 cannot be judged. Do not infer a match from an API image return alone.
 
 
-## Run the calibration candidate
+## Run the frozen pool
 
 Clone the published repository. Validate and plan offline, then explicitly
-choose the two providers for a paid pilot. A final comparison needs a separate
-version and fresh run after calibration. Review every returned image before
+choose the two providers for a paid confirmation. Use a new output directory
+for each run. Review every returned image before
 interpreting the report.
 
 ```bash
 python benchmark.py validate --require-assets
 python benchmark.py plan --model nano-banana-pro --provider segmind --provider fal
-python benchmark.py run --model nano-banana-pro --provider segmind --provider fal --repeats 3 --env-file .env --output runs/calibration-pro-3.2.0-r1
-python comparison.py report runs/calibration-pro-3.2.0-r1 --output runs/calibration-pro-3.2.0-r1/report/index.html
+python benchmark.py run --model nano-banana-pro --provider segmind --provider fal --repeats 3 --env-file .env --output runs/confirmation-pro-3.3.0
+python comparison.py report runs/confirmation-pro-3.3.0 --output runs/confirmation-pro-3.3.0/report/index.html
 ```
 
 A full run schedules 90 attempts per provider per model, 180 for both
