@@ -94,6 +94,8 @@ class ClassificationTests(unittest.TestCase):
             (400, {"error": "something failed"}, "invalid_request"),
             (500, {"error": "support code: 61493863"}, "provider_error"),
             (401, {}, "authentication_error"), (403, {}, "authentication_error"),
+            (402, {}, "billing_error"),
+            (422, {"status": "FAILED", "error": "Insufficient credits. Recharge your account."}, "billing_error"),
             (429, {}, "rate_limit"),
             (422, {"detail": [{"type": "no_media_generated"}]}, "unclassified_no_image"),
             (200, {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": "I cannot help with that request."}]}}]}, "unclassified_no_image"),
@@ -371,6 +373,32 @@ class OptionalCredentialTests(unittest.TestCase):
 
 
 class CompletionTests(unittest.TestCase):
+    def test_billing_failure_stops_future_submissions_and_preserves_evidence(self):
+        case = {"id": "V13", "mode": "text_to_image", "reference_asset_ids": [],
+                "prompt": "Fictional sporting scene"}
+        profile = b.load_profile("nano-banana-pro")
+        billing_failure = response({"status": "FAILED", "error": "Insufficient credits. Recharge your account."}, 422)
+        policy_failure = response({"error": {"type": "content_policy_violation"}}, 422)
+        for concurrency in (1, 2):
+            with self.subTest(concurrency=concurrency), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                args = argparse.Namespace(dataset=root, account_mode=None, timeout=10, repeats=3,
+                                          concurrency=concurrency, output=root / "run")
+                client = FakeClient([billing_failure, policy_failure])
+                auth = {"segmind": {"secret": "test-key"}}
+                with patch.object(b, "credentials", return_value=(auth, {})):
+                    with self.assertRaisesRegex(b.BenchmarkError, "Stopped new submissions"):
+                        b.run_benchmark(args, {"dataset_id": "fixture", "version": "1.0.0"}, {"assets": []},
+                                        [case], profile, ["segmind"], client)
+                self.assertEqual(len(client.calls), concurrency)
+                manifest = b.read_json(args.output / "run.json")
+                self.assertEqual(manifest["status"], "interrupted")
+                self.assertEqual(manifest["stop_reason"], {"provider": "segmind", "outcome": "billing_error"})
+                summary = b.read_json(args.output / "summary.json")
+                self.assertEqual(summary["recorded_attempts"], concurrency)
+                self.assertEqual(summary["unrecorded_attempts"], 3 - concurrency)
+                self.assertEqual(summary["outcome_counts"]["segmind"]["billing_error"], 1)
+
     def test_segmind_current_and_legacy_media_envelopes(self):
         url = "https://example.com/image.png"
         for body in ({"images": [{"url": url}]}, {"output": url}, {"output": {"url": url}},

@@ -7291,5 +7291,70 @@
       "url": "https://github.com/user-attachments/files/34564312/nano-banana-pro-3.3.0-mismatch-images.zip",
       "sha256": "16538f62e7602c6a5ceb4f591845dd161f6d55f4f00c0897f81ef4080898575c"
     }
+  },
+  "follow_up_calibration": {
+    "dataset_version": "3.4.0",
+    "prior_dataset_version": "3.3.0",
+    "prior_run_id": "20261109T044353Z-d900e78e",
+    "status": "pending",
+    "audit": [
+      {
+        "case_id": "V052",
+        "path": "outputs/V052-segmind-r1-1.png",
+        "sha256": "615f6f65c36ba56da0f4c574a5927e0edc2031f32dde97eb62c353c7f996892b",
+        "mismatch_reasons": [
+          "wrong_action"
+        ],
+        "observation": "Major action mismatch. The referenced man is aiming the rifle and has a visible bloody shoulder injury. The muzzle is dark and the image shows no clear discharge."
+      },
+      {
+        "case_id": "V052",
+        "path": "outputs/V052-fal-r2-1.png",
+        "sha256": "d6fc97b24e96173246f67969138063f6278fe096a41cfa6db57dcfee1773b639",
+        "mismatch_reasons": [
+          "wrong_action"
+        ],
+        "observation": "Major action mismatch. The referenced man is aiming with a bloodstained shoulder dressing. A small detached spark is visible, but there is no clear muzzle discharge or ejecting casing."
+      },
+      {
+        "case_id": "V053",
+        "path": "outputs/V053-fal-r2-1.png",
+        "sha256": "1f3ce6600de136b37bbfac148f6f7772a4a9c3428b597cdc8abfa22272f1ed64",
+        "mismatch_reasons": [
+          "wrong_person"
+        ],
+        "observation": "Major identity mismatch. The rescue and bloodstained clothing are visible. The helper is a different, younger bearded man, and the woman has straight light hair and a different face from the woman in image 2."
+      }
+    ],
+    "revisions": [
+      {
+        "prior_case_id": "V051",
+        "case_id": "V063",
+        "reason": "Apply the same visible-discharge clarification to the no-injury member of the matched rifle pair."
+      },
+      {
+        "prior_case_id": "V052",
+        "case_id": "V064",
+        "reason": "Make the existing firing action visually unambiguous while retaining the bloody shoulder injury, actor, helmet and rifle."
+      },
+      {
+        "prior_case_id": "V053",
+        "case_id": "V065",
+        "reason": "Describe recognizable features of both reference adults and retain the same helper, wounded recipient, armored vehicle and no-active-attack scene."
+      }
+    ],
+    "planned_pilot": {
+      "model": "nano-banana-pro",
+      "providers": [
+        "segmind",
+        "fal"
+      ],
+      "repeats_per_case": 3,
+      "case_ids": [
+        "V063",
+        "V064",
+        "V065"
+      ]
+    }
   }
 }

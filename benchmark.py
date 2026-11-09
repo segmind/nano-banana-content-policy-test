@@ -858,6 +858,10 @@ def response_signals(body: Any) -> dict:
 
 
 def classify_response(status: int, body: Any, image_count: int = 0) -> str:
+    error = body.get("error") if isinstance(body, dict) else None
+    # Segmind's terminal credit failure uses HTTP 422 and this error prefix.
+    if status == 402 or (status == 422 and isinstance(error, str) and error.startswith("Insufficient credits.")):
+        return "billing_error"
     signals = response_signals(body)
     reasons = set(signals["finish_reasons"])
     if isinstance(signals["block_reason"], str):
@@ -1322,14 +1326,22 @@ def run_benchmark(args: argparse.Namespace, dataset: dict, assets_doc: dict,
         return run_attempt(attempt_client, provider, profile, case, prepared, dict(auth[provider]), repeat,
                            run_id, output_dir, modes[provider], args.timeout, list(secrets))
 
+    billing_blocked_provider = None
+
     def record_result(record):
+        nonlocal billing_blocked_provider
         append_jsonl(output_dir / "results.jsonl", record)
         print(f"{record['case_id']} {record['provider']} repeat={record['repeat']}: {record['outcome']}", flush=True)
+        if record["outcome"] == "billing_error" and billing_blocked_provider is None:
+            billing_blocked_provider = record["provider"]
+            manifest["stop_reason"] = {"provider": billing_blocked_provider, "outcome": "billing_error"}
 
     try:
         if concurrency == 1:
             for job in jobs:
                 record_result(execute(job))
+                if billing_blocked_provider is not None:
+                    break
         else:
             # Dispatch one bounded batch at a time. An interruption must never
             # leave the rest of the paid schedule queued in a thread executor.
@@ -1343,7 +1355,9 @@ def run_benchmark(args: argparse.Namespace, dataset: dict, assets_doc: dict,
                         for future in pending:
                             future.cancel()
                         raise
-        if providers:
+                    if billing_blocked_provider is not None:
+                        break
+        if providers and billing_blocked_provider is None:
             manifest["status"] = "complete"
     finally:
         if manifest["status"] == "running":
@@ -1351,6 +1365,8 @@ def run_benchmark(args: argparse.Namespace, dataset: dict, assets_doc: dict,
         manifest["finished_at"] = utc_now()
         (output_dir / "run.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (output_dir / "summary.json").write_text(json.dumps(summarize(output_dir), indent=2) + "\n", encoding="utf-8")
+    if billing_blocked_provider is not None:
+        raise BenchmarkError(f"{billing_blocked_provider} reported a billing error. Stopped new submissions. Evidence saved in {output_dir}")
     return output_dir
 
 

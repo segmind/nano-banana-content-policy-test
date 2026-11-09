@@ -710,7 +710,8 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
         references = {asset['id']: asset for asset in assets['assets']}
         cases = dataset['cases']
         self.assertEqual({case['id'] for case in cases},
-                         {f'V{n:03d}' for n in (1, 3, 4, 5, 6, 10, 11, 17, 29, 30, 31, *range(42, 56), 58, 59, 60, 61, 62)})
+                         {f'V{n:03d}' for n in (1, 3, 4, 5, 6, 10, 11, 17, 29, 30, 31,
+                                               *range(42, 51), 54, 55, *range(58, 66))})
         self.assertEqual([case['features']['input_type'] for case in cases],
                          ['existing_violence_reference']*8+['clean_reference']*16+['text_only']*6)
         expected_refs = [['C002'], ['C003'], ['C006'], ['C007'], ['C018'], ['C019'], ['C007'], ['C003'],
@@ -722,6 +723,11 @@ class PhotoDesignAndConcurrencyTests(unittest.TestCase):
         self.assertTrue(all(case['content_checks'] for case in cases))
         self.assertEqual(len({case['prompt'] for case in cases}), 30)
         self.assertEqual(len(dataset['matched_comparisons']), 11)
+        rifle_pair = next(pair for pair in dataset['matched_comparisons'] if pair['id'] == 'rifle_injury')
+        self.assertEqual(rifle_pair['case_ids'], ['V063', 'V064'])
+        rifle_cases = b.select_cases(cases, rifle_pair['case_ids'])
+        self.assertEqual(rifle_cases[0]['prompt'].rsplit(' Show ', 1)[0],
+                         rifle_cases[1]['prompt'].rsplit(' Show ', 1)[0])
         self.assertEqual(dataset['cast'], {'M1': 'A09', 'M2': 'A10', 'M3': 'A12', 'W1': 'A01', 'W2': 'A11', 'W3': 'A13'})
         self.assertEqual(len({asset['sha256'] for asset in references.values()}), 18)
         self.assertTrue(all(not references[ref]['contains_existing_violence'] for ref in dataset['cast'].values()))
