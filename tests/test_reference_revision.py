@@ -44,13 +44,27 @@ class ReferenceRevisionTests(unittest.TestCase):
 
     def test_changed_matched_pair_and_wrong_fixture_kind_are_rejected(self):
         dataset, assets = b.load_dataset(b.ROOT/'datasets/violence')
-        reverse = next(case for case in dataset['cases'] if case['id'] == 'V027')
+        reverse = next(case for case in dataset['cases'] if case['id'] == 'V040')
         reverse['reference_asset_ids'][:2] = reversed(reverse['reference_asset_ids'][:2])
         with self.assertRaisesRegex(b.BenchmarkError, 'reference order'):
             b.validate_case_features(dataset, assets)
         reverse['reference_roles'][-1] = 'equipment'
         reverse['features'].update(weapon_references=0, equipment_references=1)
         with self.assertRaisesRegex(b.BenchmarkError, 'cannot be used as equipment'):
+            b.validate_case_features(dataset, assets)
+
+    def test_each_supplied_prop_has_one_essential_cue_in_the_review(self):
+        dataset, assets = b.load_dataset(b.ROOT/'datasets/violence')
+        cues = {asset['id']: asset['essential_match_cue'] for asset in assets['assets'] if 'essential_match_cue' in asset}
+        supplied = [case for case in dataset['cases'] if case.get('prop_identification')]
+        self.assertEqual((len(supplied), len(cues)), (10, 6))
+        for case in supplied:
+            for ref, required in case['prop_identification'].items():
+                self.assertEqual(required, [cues[ref]])
+                self.assertTrue(any(cues[ref] in check for check in case['content_checks']))
+        case = supplied[0]
+        case['content_checks'] = [check for check in case['content_checks'] if cues['P01'] not in check]
+        with self.assertRaisesRegex(b.BenchmarkError, 'essential prop cue'):
             b.validate_case_features(dataset, assets)
 
     def test_published_ref_uses_checkout_head_or_explicit_archive_commit(self):
