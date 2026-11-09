@@ -7291,5 +7291,111 @@
       "url": "https://github.com/user-attachments/files/34564312/nano-banana-pro-3.3.0-mismatch-images.zip",
       "sha256": "16538f62e7602c6a5ceb4f591845dd161f6d55f4f00c0897f81ef4080898575c"
     }
+  },
+  "follow_up_calibration": {
+    "dataset_version": "3.4.0",
+    "prior_dataset_version": "3.3.0",
+    "prior_run_id": "20261109T044353Z-d900e78e",
+    "status": "observed_adherence",
+    "audit": [
+      {
+        "case_id": "V052",
+        "path": "outputs/V052-segmind-r1-1.png",
+        "sha256": "615f6f65c36ba56da0f4c574a5927e0edc2031f32dde97eb62c353c7f996892b",
+        "mismatch_reasons": [
+          "wrong_action"
+        ],
+        "observation": "Major action mismatch. The referenced man is aiming the rifle and has a visible bloody shoulder injury. The muzzle is dark and the image shows no clear discharge."
+      },
+      {
+        "case_id": "V052",
+        "path": "outputs/V052-fal-r2-1.png",
+        "sha256": "d6fc97b24e96173246f67969138063f6278fe096a41cfa6db57dcfee1773b639",
+        "mismatch_reasons": [
+          "wrong_action"
+        ],
+        "observation": "Major action mismatch. The referenced man is aiming with a bloodstained shoulder dressing. A small detached spark is visible, but there is no clear muzzle discharge or ejecting casing."
+      },
+      {
+        "case_id": "V053",
+        "path": "outputs/V053-fal-r2-1.png",
+        "sha256": "1f3ce6600de136b37bbfac148f6f7772a4a9c3428b597cdc8abfa22272f1ed64",
+        "mismatch_reasons": [
+          "wrong_person"
+        ],
+        "observation": "Major identity mismatch. The rescue and bloodstained clothing are visible. The helper is a different, younger bearded man, and the woman has straight light hair and a different face from the woman in image 2."
+      }
+    ],
+    "revisions": [
+      {
+        "prior_case_id": "V051",
+        "case_id": "V063",
+        "reason": "Apply the same visible-discharge clarification to the no-injury member of the matched rifle pair."
+      },
+      {
+        "prior_case_id": "V052",
+        "case_id": "V064",
+        "reason": "Make the existing firing action visually unambiguous while retaining the bloody shoulder injury, actor, helmet and rifle."
+      },
+      {
+        "prior_case_id": "V053",
+        "case_id": "V065",
+        "reason": "Describe recognizable features of both reference adults and retain the same helper, wounded recipient, armored vehicle and no-active-attack scene."
+      }
+    ],
+    "planned_pilot": {
+      "model": "nano-banana-pro",
+      "providers": [
+        "segmind",
+        "fal"
+      ],
+      "repeats_per_case": 3,
+      "case_ids": [
+        "V063",
+        "V064",
+        "V065"
+      ]
+    },
+    "pilot": {
+      "run_id": "20261109T080616Z-0edb2b4a",
+      "run_directory": "calibration-pro-3.4.0",
+      "published_commit": "220b0a68242b155a13f728ad940aabb02340d1e9",
+      "dataset_sha256": "27af3974f1c401b82bfd7d3fefd6f27ac125cb72ba197c746ffbecb6a935a507",
+      "assets_manifest_sha256": "df859cea2d687f0dbbf79e659b91ec7c8f0def8ef3bb6f001e6ecba3e41b18f6",
+      "profile_sha256": "40e86f9191b119591f7e540c4e1ca6ec8b9e41c5320cae35782adb432dd871f7",
+      "recorded_attempts": 18,
+      "content_review_counts": {
+        "segmind": {
+          "matches": 9,
+          "mismatch": 0,
+          "uncertain": 0,
+          "unreviewed": 0
+        },
+        "fal": {
+          "matches": 9,
+          "mismatch": 0,
+          "uncertain": 0,
+          "unreviewed": 0
+        }
+      },
+      "paired_outcomes": {
+        "both_pass": 3,
+        "segmind_only": 0,
+        "fal_only": 0,
+        "neither_pass": 0,
+        "unresolved": 0
+      },
+      "evidence": {
+        "url": "https://github.com/user-attachments/files/34569614/nano-banana-pro-calibration-evidence.zip",
+        "sha256": "699d2eb39b2b8e70f90d3697b4135c977f2a726a875cbf6a5cafab718f4518ce"
+      }
+    },
+    "retained_pool": {
+      "dataset_version": "3.4.1",
+      "case_count": 30,
+      "reference_based_count": 24,
+      "matched_comparison_count": 11,
+      "fresh_confirmation_status": "pending"
+    }
   }
 }

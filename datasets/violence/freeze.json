@@ -1,6 +1,6 @@
 {
-  "dataset_sha256": "a72c5d2c1d3a808b9950e5f1f70a297623e8fe5aa31e030e372d1580b905dea4",
-  "assets_manifest_sha256": "dec2b68d0c8a161179c7f3849597f1c77aa31ab97cbc6af7b7946dd83a54d1ea",
-  "frozen_at": "2026-11-09T04:43:29.951+00:00",
-  "reviewer": "Codex visual review of both pilots and the retained pool"
+  "dataset_sha256": "0b0d99109b0a11e700d043256570d5e678c998212e0b7534244fff2c101e7c06",
+  "assets_manifest_sha256": "df859cea2d687f0dbbf79e659b91ec7c8f0def8ef3bb6f001e6ecba3e41b18f6",
+  "frozen_at": "2026-11-09T08:14:38.259+00:00",
+  "reviewer": "Codex review of all targeted pilot images and retained inputs"
 }

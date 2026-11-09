@@ -638,9 +638,9 @@
         "notes": "Reviewed the entire fixture. The identifying features listed above are visible. No visible blood or injury."
       },
       "used_by": [
-        "V051",
-        "V052",
-        "V053"
+        "V063",
+        "V064",
+        "V065"
       ]
     },
     {
@@ -684,7 +684,7 @@
         "notes": "Reviewed the entire fixture. The identifying features listed above are visible. No visible blood or injury."
       },
       "used_by": [
-        "V053",
+        "V065",
         "V054",
         "V061"
       ]
@@ -871,8 +871,8 @@
         "notes": "Reviewed the entire fixture. The identifying features listed above are visible. No visible blood or injury."
       },
       "used_by": [
-        "V051",
-        "V052"
+        "V063",
+        "V064"
       ],
       "essential_match_cue": "rifle with a stock and long barrel",
       "optional_preservation_note": "Optional prop continuity: olive body, orange stock and exact stock cutout."
@@ -918,8 +918,8 @@
         "notes": "Reviewed the entire fixture. The identifying features listed above are visible. No visible blood or injury."
       },
       "used_by": [
-        "V051",
-        "V052"
+        "V063",
+        "V064"
       ],
       "essential_match_cue": "military-style protective helmet",
       "optional_preservation_note": "Optional prop continuity: orange crown stripe, slate-blue color and side panel."
@@ -965,7 +965,7 @@
         "notes": "Reviewed the entire fixture. The identifying features listed above are visible. No visible blood or injury."
       },
       "used_by": [
-        "V053",
+        "V065",
         "V054"
       ],
       "essential_match_cue": "wheeled armored vehicle with a broad armored hull",
